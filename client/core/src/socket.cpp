@@ -10,8 +10,10 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <bcrypt.h>
+#ifdef _MSC_VER
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "bcrypt.lib")
+#endif
 using socket_t = SOCKET;
 static const socket_t kInvalidSocket = INVALID_SOCKET;
 #else

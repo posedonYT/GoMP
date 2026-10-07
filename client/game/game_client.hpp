@@ -2,9 +2,13 @@
 // Everything runs on the ScriptHookV script fiber (one call to tick() per frame).
 #pragma once
 
+#include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <deque>
 #include <map>
+#include <set>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -12,6 +16,7 @@
 #include "gomp/messages.hpp"
 #include "gomp/transport.hpp"
 #include "shv.hpp"
+#include "ui.hpp"
 
 namespace gompgame {
 
@@ -52,6 +57,12 @@ struct RemotePlayer {
     uint16_t lastFlags = 0;
     Vec3 lastTaskTarget;
     gomp::TimePoint lastTaskAt;
+    bool moveTask = false;      // a go-to task is running
+    bool aimTask = false;       // an aim task is running
+    Vec3 lastAimTarget;
+    gomp::TimePoint lastAimAt;
+    uint32_t pedWeapon = 0;     // weapon given to the ped
+    gomp::TimePoint lastVehicleCheck;
     gomp::Props props;
     gomp::KV shared;
     Vec3 spawnPos;
@@ -70,6 +81,7 @@ struct RemoteVehicle {
     uint16_t flags = 0;
     float steer = 0;
     float bodyHealth = 1000, engineHealth = 1000;
+    uint16_t appliedFlags = 0xFFFF;  // flags already applied to the handle
 };
 
 // Static world entities (objects, peds, blips, markers, checkpoints, labels).
@@ -86,6 +98,7 @@ struct WorldEntity {
 class GameClient {
 public:
     explicit GameClient(Config cfg);
+    ~GameClient();
     void tick();                                  // once per frame
     void onKey(DWORD key, bool down, bool alt);   // keyboard handler (any thread)
 
@@ -97,7 +110,7 @@ private:
     void pump();
     void handle(const uint8_t* d, std::size_t n);
     template <typename M> void send(const M& m, gomp::Channel ch = gomp::Channel::Reliable) {
-        net_.send(ch, gomp::marshal(m));
+        net_->send(ch, gomp::marshal(m));
     }
     uint32_t clock() const;
 
@@ -146,13 +159,100 @@ private:
     void notify(const std::string& text);
     void suppressPopulation();
     void clearAmbient();
+    void killStoryScripts();
+    std::vector<std::pair<int, std::string>> runningScripts() const;
+    void logScripts();
+    void removeForeignBlips();
+    void restorePlayerState();
+    void handlePauseMenu();
+    bool uiBlocksPause();
+
+    // login, character selection, character creator and the HUD (screens.cpp)
+    enum class Screen { None, Login, Characters, Creator, Menu, Layout };
+    bool lobbyScreen() const { return screen_ == Screen::Login || screen_ == Screen::Characters || screen_ == Screen::Creator; }
+    struct CharInfo {
+        int id = 0, statik = 0;
+        std::string first, last;
+        bool female = false;
+        long long cash = 0, bank = 0;
+    };
+    struct Creator {
+        bool female = false;
+        std::string first, last;
+        int father = 0, mother = 21;
+        float shapeMix = 0.5f, skinMix = 0.5f;
+        int hair = 0, hairColor = 0, eyeColor = 0, brows = 0, beard = -1;
+        int top = 0, topTex = 0, torso = 0, undershirt = 15, legs = 0, legsTex = 0, shoes = 0, shoesTex = 0;
+        int outfit = 0, kit = 0;
+        bool dirty = true, needDefaults = true;
+    };
+    struct UiKey {
+        DWORD key;
+        std::string text;
+        std::string latin;  // the same key in the US layout
+    };
+    bool handleUiEvent(const gomp::ScriptEvent& e);
+    void openScreen(Screen s);
+    void closeScreens();
+    void tickScreens();
+    void drawLogin();
+    void drawCharacters();
+    void drawCreator();
+    void applyCreatorPreview();
+    void dumpClothes();
+    void dressOutfit(Ped ped, Creator& c);
+    void submitLogin();
+    void submitCreator();
+    void drawHud();
+
+    // HUD layout, settings, F2 menu, layout editor and the movable minimap (hud.cpp)
+    struct Settings {
+        float mapDX = 0, mapDY = 0;          // minimap offset from its default place (screen units)
+        bool infoAttached = true;            // the money/location block sticks to the minimap
+        float infoX = 0, infoY = 0;          // its top-left corner when detached
+        float topX = 0.985f, topY = 0.012f;  // online/name block (top-right anchor)
+        bool nametags = true, hud = true, perf = false;
+    };
+    struct Rect {
+        float x = 0, y = 0, w = 0, h = 0;
+        bool contains(float px, float py) const { return px >= x && px <= x + w && py >= y && py <= y + h; }
+    };
+    void loadSettings();
+    void saveSettings();
+    Rect minimapRect() const;
+    Rect infoRect() const;
+    Rect topRect() const;
+    void startMinimapSearch();
+    void applyMinimapPosition();
+    void tickMinimap();
+    void drawMenu();
+    void drawLayout();
+    void cancelLayout();
+    bool uiButton(float x, float y, float w, float h, const std::string& text, bool primary = false, bool enabled = true);
+    void uiTextField(float x, float y, float w, const std::string& label, std::string& value, bool password);
+    int uiStepper(float x, float y, float w, const std::string& label, const std::string& value);
+    void drawNameTags();
+
+    // admin console (` key) and diagnostics
+    void drawConsole();
+    void runConsole(const std::string& line);
+    void consolePrint(const std::string& text);
+    void samplePerf(Clock::time_point frameStart);
+    void drawPerf();
+    void log(const std::string& text);
 
     Config cfg_;
-    gomp::Client net_;
+    std::unique_ptr<gomp::Client> net_ = std::make_unique<gomp::Client>();
     std::vector<gomp::Message> inbox_;
     Clock::time_point epoch_ = Clock::now();
     Clock::time_point lastSync_{}, lastAmbientSweep_{}, lastConnectTry_{};
     std::string status_ = "connecting";
+    bool populationInit_ = false;
+    Clock::time_point lastScriptKill_{};
+    std::set<std::string> knownScripts_;
+    std::set<std::string> terminatedScripts_;  // already logged
+    Hash pendingSelfModel_ = 0;  // player model waiting for streaming
+    gomp::Props selfProps_;      // own appearance, re-applied after a model change
 
     // own state
     uint16_t myId_ = gomp::kNoID;
@@ -184,6 +284,54 @@ private:
     std::string chatInput_;
     std::vector<std::string> pendingChat_;  // filled by the keyboard thread
     CRITICAL_SECTION chatLock_;
+
+    // admin console: the input is written by the keyboard thread under chatLock_
+    bool consoleOpen_ = false;
+    std::string consoleInput_;
+    std::vector<std::string> pendingConsole_;
+    std::vector<std::string> consoleHistory_;
+    std::size_t historyPos_ = 0;
+    std::deque<std::string> consoleLines_;  // script thread only
+
+    // diagnostics: real vs game frame time, own tick cost
+    struct Perf {
+        Clock::time_point lastFrame{}, windowStart{};
+        double realSum = 0, gameSum = 0, tickSum = 0, tickMax = 0;
+        int frames = 0;
+        double fps = 0, timeScale = 1, tickAvgMs = 0, tickMaxMs = 0;
+    } perf_;
+    std::atomic<DWORD> escHandledAt_{0};  // Esc consumed by the chat/console (keyboard thread)
+    std::atomic<ui::Lang> lang_{ui::Lang::En};  // input language for chat, console and fields
+    std::string langTag() const { return lang_.load() == ui::Lang::Ru ? "[RU]" : "[EN]"; }
+
+    // screens
+    Screen screen_ = Screen::None;
+    std::atomic<bool> screenActive_{false};  // read by the keyboard thread
+    std::vector<UiKey> uiKeys_;               // under chatLock_
+    std::string* focus_ = nullptr;
+    std::vector<std::string*> focusOrder_, focusDrawn_;
+    float mouseX_ = 0, mouseY_ = 0;
+    bool mouseClick_ = false;
+    std::string loginName_, loginPassword_, uiError_;
+    bool registerMode_ = false, uiBusy_ = false;
+    std::vector<CharInfo> chars_;
+    int maxChars_ = 3;
+    Creator creator_;
+    Cam uiCam_ = 0;
+    float creatorHeading_ = 0;
+    int onlineCount_ = 0;
+    gomp::KV selfShared_;  // own shared and own-only variables (cash, bank, static)
+
+    // hud.cpp
+    Settings settings_, layoutBackup_;
+    int menuTab_ = 0;
+    std::atomic<bool> menuRequested_{false};  // F2 (keyboard thread)
+    float* minimapParts_[3] = {};               // minimap, minimap_mask, minimap_blur frontend data
+    std::atomic<int> minimapSearch_{0};         // 0 idle, 1 running, 2 found, 3 not found
+    int bigmapRefresh_ = 0;
+    int dragging_ = -1;
+    float dragDX_ = 0, dragDY_ = 0;
+    FILE* log_ = nullptr;
 };
 
 // Seat mapping: GoMP/RAGE seat 0 is the driver, GTA's driver seat index is -1.

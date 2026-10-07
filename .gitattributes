@@ -1,0 +1,11 @@
+# Test fixtures are compared byte for byte (also by the C++ tests).
+*.txt text eol=lf
+*.bin binary
+*.go text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.h text eol=lf
+*.c text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf

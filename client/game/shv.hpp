@@ -41,14 +41,15 @@ typedef int ColourIndex;
 typedef int Sphere;
 typedef int ScrHandle;
 
-// Natives exchange vectors as three 8-byte slots.
-#pragma pack(push, 1)
+// Natives exchange vectors as three 8-byte slots (a float and 4 bytes of padding each).
 struct Vector3 {
-    alignas(8) float x;
-    alignas(8) float y;
-    alignas(8) float z;
+    float x;
+    uint32_t padX_ = 0;
+    float y;
+    uint32_t padY_ = 0;
+    float z;
+    uint32_t padZ_ = 0;
 };
-#pragma pack(pop)
 static_assert(sizeof(Vector3) == 24, "Vector3 must match the native ABI");
 
 namespace shv {

@@ -1,63 +1,44 @@
-// Freeroam gamemode for GoMP, written only against the RAGE.MP server API.
-// Drop it into a RAGE.MP server's packages/ folder and it works there too.
+// GoMP gamemode: accounts and characters (roleplay.js), admin tools (admin.js)
+// and a few freeroam commands. Written only against the RAGE.MP server API.
 
-const spawnPoints = [
-  new mp.Vector3(-425.517, 1123.620, 325.854), // Galileo Observatory
-  new mp.Vector3(-1037.4, -2737.7, 20.17), // LSIA
-  new mp.Vector3(215.8, -810.1, 30.73), // Legion Square
-  new mp.Vector3(-1388.8, -586.6, 30.21), // Del Perro
-];
+const roleplay = require('./roleplay');
+require('./admin');
 
-const starterWeapons = ['weapon_pistol', 'weapon_carbinerifle', 'weapon_knife'];
-
-function randomSpawn() {
-  return spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
-}
-
-function armPlayer(player) {
-  player.removeAllWeapons();
-  for (const w of starterWeapons) player.giveWeapon(mp.joaat(w), 250);
-}
-
-mp.events.add('playerJoin', (player) => {
-  console.log(`[freeroam] ${player.name} (${player.socialClub}) joined from ${player.ip}`);
-  mp.players.broadcast(`!{#8ef}${player.name} joined the server.`);
-  player.setVariable('kills', 0);
-});
-
-mp.events.add('playerReady', (player) => {
-  player.spawn(randomSpawn(), 0);
-  armPlayer(player);
-  player.outputChatBox('Commands: /veh [model], /weapon [name] [ammo], /tp x y z, /dim [n], /hp, /kill, /pos, /time h, /weather name');
+// Chat and commands are available once a character is in the game.
+mp.events.add('playerChat', (player, text) => {
+  if (!roleplay.isLogged(player)) return;
+  const st = player.getVariable('static');
+  mp.players.broadcast(`${player.name} [${st}]: ${text}`);
 });
 
 mp.events.add('playerQuit', (player, exitType, reason) => {
-  mp.players.broadcast(`!{#8ef}${player.name} left (${exitType}${reason ? `: ${reason}` : ''}).`);
-  const veh = player.getVariable('personalVehicle');
-  if (veh && mp.vehicles.exists(veh)) veh.destroy();
-});
-
-mp.events.add('playerChat', (player, text) => {
-  mp.players.broadcast(`${player.name}: ${text}`);
+  if (!roleplay.isLogged(player)) return;
+  mp.players.broadcast(`!{#8ef}${player.name} вышел (${exitType}${reason ? `: ${reason}` : ''}).`);
 });
 
 mp.events.add('playerDeath', (player, reason, killer) => {
-  if (killer && killer !== player) {
-    killer.setVariable('kills', (killer.getVariable('kills') || 0) + 1);
-    mp.players.broadcast(`${killer.name} killed ${player.name}`);
+  if (killer && killer !== player && roleplay.isLogged(killer)) {
+    mp.players.broadcast(`${killer.name} убил ${player.name}`);
   }
-  setTimeout(() => {
-    if (!mp.players.exists(player)) return;
-    player.spawn(randomSpawn(), 0);
-    armPlayer(player);
-  }, 3000);
 });
 
 mp.events.add('playerCommand', (player, command) => {
-  player.outputChatBox(`Unknown command: /${command}`);
+  player.outputChatBox(`Неизвестная команда: /${command}`);
 });
 
-mp.events.addCommand('veh', (player, _, model = 'sultan') => {
+// Commands for players with a character; others get a hint.
+function command(name, fn) {
+  mp.events.addCommand(name, (player, ...args) => {
+    if (!roleplay.isLogged(player)) return player.outputChatBox('!{#f66}Сначала войдите и выберите персонажа');
+    return fn(player, ...args);
+  });
+}
+
+command('help', (player) => {
+  player.outputChatBox('Команды: /veh [модель], /tp x y z, /pos, /money, /pay <id> <сумма>, /time ч, /weather тип. Консоль: \\');
+});
+
+command('veh', (player, _, model = 'sultan') => {
   const old = player.getVariable('personalVehicle');
   if (old && mp.vehicles.exists(old)) old.destroy();
   const pos = player.position;
@@ -71,43 +52,41 @@ mp.events.addCommand('veh', (player, _, model = 'sultan') => {
   player.putIntoVehicle(veh, 0);
 });
 
-mp.events.addCommand('weapon', (player, _, name = 'pistol', ammo = '250') => {
-  player.giveWeapon(mp.joaat(name.startsWith('weapon_') ? name : `weapon_${name}`), Number(ammo) || 250);
-});
-
-mp.events.addCommand('tp', (player, _, x, y, z) => {
-  if ([x, y, z].some((v) => Number.isNaN(Number(v)))) return player.outputChatBox('Usage: /tp x y z');
+command('tp', (player, _, x, y, z) => {
+  if ([x, y, z].some((v) => Number.isNaN(Number(v)))) return player.outputChatBox('Использование: /tp x y z');
   player.position = new mp.Vector3(Number(x), Number(y), Number(z));
   return undefined;
 });
 
-mp.events.addCommand('dim', (player, _, dim = '0') => {
-  player.dimension = Number(dim) >>> 0;
-  player.outputChatBox(`Dimension: ${player.dimension}`);
-});
-
-mp.events.addCommand('hp', (player) => {
-  player.health = 100;
-  player.armour = 100;
-});
-
-mp.events.addCommand('kill', (player) => {
-  player.health = 0;
-});
-
-mp.events.addCommand('pos', (player) => {
+command('pos', (player) => {
   const p = player.position;
   player.outputChatBox(`${p.x.toFixed(2)} ${p.y.toFixed(2)} ${p.z.toFixed(2)} heading ${player.heading.toFixed(1)}`);
 });
 
-mp.events.addCommand('time', (_, __, hour = '12') => {
+command('money', (player) => {
+  const ch = roleplay.character(player);
+  player.outputChatBox(`Наличные: $${ch.cash}, на карте: $${ch.bank}`);
+});
+
+command('pay', (player, _, id, amount) => {
+  const target = mp.players.at(Number(id));
+  const sum = Math.floor(Number(amount));
+  const from = roleplay.character(player);
+  if (!target || target === player || !roleplay.isLogged(target)) return player.outputChatBox('Использование: /pay <id> <сумма>');
+  if (!(sum > 0) || sum > from.cash) return player.outputChatBox('!{#f66}Недостаточно наличных');
+  if (target.position.subtract(player.position).length() > 5) return player.outputChatBox('!{#f66}Игрок слишком далеко');
+  const to = roleplay.character(target);
+  roleplay.setMoney(player, from.cash - sum, from.bank);
+  roleplay.setMoney(target, to.cash + sum, to.bank);
+  player.outputChatBox(`Вы передали $${sum} игроку ${target.name}`);
+  target.outputChatBox(`${player.name} передал вам $${sum}`);
+  return undefined;
+});
+
+command('time', (_, __, hour = '12') => {
   mp.world.time.set(Number(hour) % 24, 0, 0);
 });
 
-mp.events.addCommand('weather', (_, __, weather = 'EXTRASUNNY') => {
+command('weather', (_, __, weather = 'EXTRASUNNY') => {
   mp.world.weather = weather;
-});
-
-mp.events.addCommand('kills', (player) => {
-  player.outputChatBox(`Kills: ${player.getVariable('kills') || 0}`);
 });

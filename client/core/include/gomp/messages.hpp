@@ -56,7 +56,9 @@ constexpr uint8_t Model = 1, Position = 2, Rotation = 3, Alpha = 5, Frozen = 6, 
                   BlipName = 62, BlipScale = 63, BlipShortRange = 64, BlipRotation = 66, MarkerType = 70,
                   MarkerScale = 71, MarkerColor = 72, MarkerDirection = 73, Visible = 74, CheckpointType = 80,
                   CheckpointRadius = 81, CheckpointColor = 82, Destination = 83, LabelText = 90,
-                  LabelColor = 91, LabelDrawDistance = 92, LabelLOS = 93, LabelFont = 94;
+                  LabelColor = 91, LabelDrawDistance = 92, LabelLOS = 93, LabelFont = 94,
+                  WalkingStyle = 27, GameType = 28, DashboardColor = 49, TrimColor = 50, CustomTires = 52,
+                  Paint = 53, BlipDrawDistance = 65;
 }
 
 using Props = std::map<uint8_t, Value>;

@@ -26,7 +26,7 @@ uint16_t pedFlags(Ped p) {
     if (PED::IS_PED_IN_MELEE_COMBAT(p)) f |= ped::InMelee;
     if (PED::IS_PED_JUMPING(p)) f |= ped::Jumping;
     if (PED::IS_PED_CLIMBING(p)) f |= ped::Climbing;
-    if (TASK::IS_PED_IN_COVER(p, false)) f |= ped::InCover;
+    if (PED::IS_PED_IN_COVER(p, false)) f |= ped::InCover;
     if (PED::IS_PED_DUCKING(p)) f |= ped::Crouching;
     if (PED::IS_PED_RAGDOLL(p)) f |= ped::Ragdoll;
     if (PED::IS_PED_FALLING(p)) f |= ped::Falling;
@@ -39,8 +39,8 @@ uint16_t pedFlags(Ped p) {
 
 // Where the player aims: the camera ray hit point, or 100 m along the camera.
 Vec3 aimPoint() {
-    Vector3 cam = CAM::GET_GAMEPLAY_CAM_COORD();
-    Vector3 rot = CAM::GET_GAMEPLAY_CAM_ROT(2);
+    Vector3 cam = CAMERA::GET_GAMEPLAY_CAM_COORD();
+    Vector3 rot = CAMERA::GET_GAMEPLAY_CAM_ROT(2);
     double rx = rot.x * 3.14159265358979 / 180, rz = rot.z * 3.14159265358979 / 180;
     double cx = std::cos(rx);
     Vec3 dir{static_cast<float>(-std::sin(rz) * cx), static_cast<float>(std::cos(rz) * cx), static_cast<float>(std::sin(rx))};
@@ -165,7 +165,7 @@ void GameClient::detectHits() {
         PED::GET_PED_LAST_DAMAGE_BONE(r.ped, &bone);
         ENTITY::CLEAR_ENTITY_LAST_DAMAGE_ENTITY(r.ped);
         // Undo the local damage: the server decides health and death.
-        if (!r.dead) ENTITY::SET_ENTITY_HEALTH(r.ped, 1000, 0);
+        if (!r.dead) ENTITY::SET_ENTITY_HEALTH(r.ped, 1000, 0, 0);
         if (!recentShot && !melee) continue;
         WeaponHit hit;
         hit.shotSeq = shotSeq_;
@@ -210,7 +210,7 @@ void GameClient::detectSelfDamage() {
         d.armour = static_cast<uint8_t>(std::min(255, armourLoss));
         send(d, Channel::Reliable);
         // Keep the server's values until it confirms the new ones.
-        ENTITY::SET_ENTITY_HEALTH(me, 100 + serverHealth_, 0);
+        ENTITY::SET_ENTITY_HEALTH(me, 100 + serverHealth_, 0, 0);
         PED::SET_PED_ARMOUR(me, serverArmour_);
         ENTITY::CLEAR_ENTITY_LAST_DAMAGE_ENTITY(me);
         hp = ENTITY::GET_ENTITY_HEALTH(me);

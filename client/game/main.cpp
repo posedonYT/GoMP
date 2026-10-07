@@ -2,12 +2,13 @@
 #include <memory>
 
 #include "game_client.hpp"
+#include "patches.hpp"
 #include "shv.hpp"
 
 namespace {
 
 std::unique_ptr<gompgame::GameClient> g_client;
-HMODULE g_module = nullptr;
+[[maybe_unused]] HMODULE g_module = nullptr;
 
 void ScriptMain() {
     gompgame::Config cfg = gompgame::loadConfig("gomp.json");
@@ -24,10 +25,11 @@ void OnKeyboard(DWORD key, WORD, BYTE, BOOL, BOOL isWithAlt, BOOL, BOOL isUpNow)
 
 }  // namespace
 
-BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
+BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
     switch (reason) {
         case DLL_PROCESS_ATTACH:
             g_module = module;
+            gompgame::patches::apply();  // must run before the game reaches its front end
             if (!shv::load()) {
                 MessageBoxA(nullptr, "GoMP: ScriptHookV.dll was not found or is incompatible.", "GoMP", MB_ICONERROR);
                 return FALSE;
@@ -36,7 +38,9 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
             shv::api.keyboardHandlerRegister(OnKeyboard);
             break;
         case DLL_PROCESS_DETACH:
-            if (shv::api.scriptUnregister) {
+            // On process exit (reserved != null) other threads are already gone: touching
+            // ScriptHookV here can deadlock the shutdown, so only unregister on FreeLibrary.
+            if (shv::api.scriptUnregister && !reserved) {
                 shv::api.scriptUnregister(module);
                 shv::api.keyboardHandlerUnregister(OnKeyboard);
             }

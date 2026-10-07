@@ -3,6 +3,7 @@ package transport
 import (
 	"net"
 	"net/netip"
+	"runtime"
 	"sync"
 
 	"golang.org/x/net/ipv4"
@@ -48,7 +49,9 @@ type socketWriter struct {
 
 func newSocketWriter(pc PacketConn, workers int) *socketWriter {
 	w := &socketWriter{pc: pc, q: make(chan []outPacket, writeQueueLen)}
-	if uc, ok := pc.(*net.UDPConn); ok {
+	// x/net has no batch I/O on Windows (WriteBatch always fails there), so
+	// datagrams are written one by one.
+	if uc, ok := pc.(*net.UDPConn); ok && runtime.GOOS != "windows" {
 		if la, ok := uc.LocalAddr().(*net.UDPAddr); ok && la.IP.To4() != nil {
 			w.batch = ipv4.NewPacketConn(uc)
 		} else {

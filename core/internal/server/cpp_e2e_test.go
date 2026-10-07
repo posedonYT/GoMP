@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,10 +14,14 @@ import (
 )
 
 // TestCppHeadlessClient runs the C++ client stack (client/build/gomp-headless,
-// built with `make -C client`) against the Go server with encryption on: the
+// built with `make -C client` or CMake) against the Go server with encryption on: the
 // C++ client connects, spawns and walks, and a Go bot must see it move.
 func TestCppHeadlessClient(t *testing.T) {
-	bin, _ := filepath.Abs(filepath.Join("..", "..", "..", "client", "build", "gomp-headless"))
+	name := "gomp-headless"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	bin, _ := filepath.Abs(filepath.Join("..", "..", "..", "client", "build", name))
 	if _, err := os.Stat(bin); err != nil {
 		t.Skip("C++ headless client not built (make -C client)")
 	}

@@ -4,12 +4,33 @@
 #include <cmath>
 
 #include "natives.hpp"
+#include "patches.hpp"
 
 namespace gompgame {
 
 using namespace gomp;
 
-GameClient::GameClient(Config cfg) : cfg_(std::move(cfg)) { InitializeCriticalSection(&chatLock_); }
+GameClient::GameClient(Config cfg) : cfg_(std::move(cfg)) {
+    InitializeCriticalSection(&chatLock_);
+    log_ = std::fopen("gomp.log", "w");
+    lang_ = ui::systemLang();
+    loadSettings();
+    log("GoMP client started, server " + cfg_.host + ":" + std::to_string(cfg_.port) + ", name " + cfg_.name);
+    for (const auto& line : patches::log()) log(line);
+}
+
+GameClient::~GameClient() {
+    if (log_) std::fclose(log_);
+    DeleteCriticalSection(&chatLock_);
+}
+
+void GameClient::log(const std::string& text) {
+    if (!log_) return;
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    std::fprintf(log_, "[%02d:%02d:%02d.%03d] %s\n", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds, text.c_str());
+    std::fflush(log_);
+}
 
 uint32_t GameClient::clock() const {
     return static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - epoch_).count());
@@ -22,37 +43,54 @@ void GameClient::connect() {
     info.socialClub = cfg_.name;
     info.build = 0;
     std::string err;
-    if (!net_.connect(cfg_.host, cfg_.port, info.marshal(), err)) {
+    if (!net_->connect(cfg_.host, cfg_.port, info.marshal(), err)) {
         status_ = "connect error: " + err;
+        log(status_);
         return;
     }
     status_ = "connecting to " + cfg_.host + ":" + std::to_string(cfg_.port);
+    log(status_);
 }
 
 void GameClient::tick() {
     auto now = Clock::now();
+    const auto frameStart = now;
     suppressPopulation();
-    if (net_.state() == Client::State::Idle ||
-        ((net_.state() == Client::State::Disconnected || net_.state() == Client::State::Rejected) &&
+    // Console lines typed on the keyboard thread.
+    EnterCriticalSection(&chatLock_);
+    auto consoleLines = std::move(pendingConsole_);
+    pendingConsole_.clear();
+    LeaveCriticalSection(&chatLock_);
+    for (auto& l : consoleLines) runConsole(l);
+    if (net_->state() == Client::State::Idle ||
+        ((net_->state() == Client::State::Disconnected || net_->state() == Client::State::Rejected) &&
          now - lastConnectTry_ > std::chrono::seconds(10))) {
         lastConnectTry_ = now;
-        if (net_.state() != Client::State::Idle) {
-            status_ = "disconnected (" + net_.reason() + "), reconnecting";
+        if (net_->state() != Client::State::Idle) {
+            status_ = "disconnected (" + net_->reason() + "), reconnecting";
+            log(status_);
+            consolePrint("~r~" + status_);
             for (auto& [id, r] : players_) despawnPlayer(r);
             for (auto& [id, v] : vehicles_) despawnVehicle(v);
             for (auto& [k, e] : world_) despawnWorldEntity(e);
+            closeScreens();
+            selfShared_.clear();
+            selfProps_.clear();
             players_.clear();
             vehicles_.clear();
             world_.clear();
             myId_ = gomp::kNoID;
             readySent_ = spawned_ = false;
-            net_ = Client();
+            net_ = std::make_unique<Client>();
         }
         connect();
     }
-    net_.update(now);
-    if (net_.state() == Client::State::Connected) {
-        if (status_.rfind("connecting", 0) == 0) status_.clear();
+    net_->update(now);
+    if (net_->state() == Client::State::Connected) {
+        if (status_.rfind("connecting", 0) == 0) {
+            log("connected");
+            status_.clear();
+        }
         pump();
         if (myId_ != gomp::kNoID && !readySent_) {
             send(Ready{});
@@ -82,16 +120,20 @@ void GameClient::tick() {
         }
         updateRemotes();
         drawWorld();
-        net_.flush(now);
-    } else if (net_.state() == Client::State::Rejected) {
-        status_ = "rejected: " + net_.reason();
+        drawHud();
+        net_->flush(now);
+    } else if (net_->state() == Client::State::Rejected) {
+        status_ = "rejected: " + net_->reason();
     }
+    tickScreens();
     drawUi();
+    drawConsole();
+    samplePerf(frameStart);
 }
 
 void GameClient::pump() {
     inbox_.clear();
-    net_.drain(inbox_);
+    net_->drain(inbox_);
     for (auto& m : inbox_) handle(m.data.data(), m.data.size());
 }
 
@@ -179,7 +221,8 @@ void GameClient::handle(const uint8_t* d, std::size_t n) {
             } else if (auto it = world_.find({static_cast<uint8_t>(sd.type), sd.id}); it != world_.end()) {
                 target = &it->second.shared;
             }
-            if (!target) return;  // own variables are kept for client scripts (phase 2)
+            if (sd.type == EntityType::Player && sd.id == myId_) target = &selfShared_;  // cash, bank, static
+            if (!target) return;
             for (auto& [k, v] : sd.values) {
                 std::erase_if(*target, [&](auto& kv) { return kv.first == k; });
                 if (!v.isNil()) target->emplace_back(k, v);
@@ -210,7 +253,7 @@ void GameClient::handle(const uint8_t* d, std::size_t n) {
                 enteringVehicle_ = r.vehicleId;
                 enteringSeat_ = r.seat;
                 enterStarted_ = Clock::now();
-                TASK::TASK_ENTER_VEHICLE(me, veh, 10000, gtaSeat(r.seat), 1.0f, 1, nullptr, 0);
+                TASK::TASK_ENTER_VEHICLE(me, veh, 10000, gtaSeat(r.seat), 1.0f, 1, nullptr);
             } else if (r.result == EnterResult::Locked) {
                 notify("~r~The vehicle is locked");
             }
@@ -250,6 +293,7 @@ void GameClient::handle(const uint8_t* d, std::size_t n) {
             if (!unmarshal(d, n, c)) return;
             chatLines_.push_back(c.text);
             while (chatLines_.size() > 10) chatLines_.pop_front();
+            consolePrint(c.text);  // command replies show up in the admin console too
             return;
         }
         case MsgID::Notify: {
@@ -294,7 +338,10 @@ void GameClient::onCreate(const EntityCreate& c) {
     switch (c.type) {
         case EntityType::Player: {
             if (c.id == myId_) {
-                applySelfProps(c.props);
+                // The server's model (mp_m_freemode_01 by default) replaces the story character.
+                Props p = c.props;
+                if (c.model && !p.count(prop::Model)) p[prop::Model] = Value::integer(c.model);
+                applySelfProps(p);
                 return;
             }
             RemotePlayer& r = players_[c.id];
@@ -373,11 +420,11 @@ void GameClient::onProps(EntityType t, uint16_t id, const Props& p) {
                     break;
                 case prop::Dead: {
                     bool dead = v.kind == Value::Kind::Bool && v.b;
-                    if (r.ped && dead && !r.dead) ENTITY::SET_ENTITY_HEALTH(r.ped, 0, 0);
+                    if (r.ped && dead && !r.dead) ENTITY::SET_ENTITY_HEALTH(r.ped, 0, 0, 0);
                     if (r.ped && !dead && r.dead) {
                         PED::RESURRECT_PED(r.ped);
                         PED::REVIVE_INJURED_PED(r.ped);
-                        ENTITY::SET_ENTITY_HEALTH(r.ped, 200, 0);
+                        ENTITY::SET_ENTITY_HEALTH(r.ped, 200, 0, 0);
                         TASK::CLEAR_PED_TASKS_IMMEDIATELY(r.ped);
                     }
                     r.dead = dead;
@@ -430,10 +477,14 @@ void GameClient::onProps(EntityType t, uint16_t id, const Props& p) {
 void GameClient::applySelfProps(const Props& p) {
     Ped me = PLAYER::PLAYER_PED_ID();
     for (auto& [k, v] : p) {
+        if (v.isNil()) selfProps_.erase(k);
+        else selfProps_[k] = v;
+    }
+    for (auto& [k, v] : p) {
         switch (k) {
             case prop::Health:
                 serverHealth_ = static_cast<int>(v.asInt());
-                if (!dead_) ENTITY::SET_ENTITY_HEALTH(me, 100 + serverHealth_, 0);
+                if (!dead_) ENTITY::SET_ENTITY_HEALTH(me, 100 + serverHealth_, 0, 0);
                 lastLocalHealth_ = ENTITY::GET_ENTITY_HEALTH(me);
                 break;
             case prop::Armour:
@@ -442,17 +493,16 @@ void GameClient::applySelfProps(const Props& p) {
                 break;
             case prop::Dead: {
                 bool dead = v.kind == Value::Kind::Bool && v.b;
-                if (dead && !dead_) ENTITY::SET_ENTITY_HEALTH(me, 0, 0);
+                if (dead && !dead_) ENTITY::SET_ENTITY_HEALTH(me, 0, 0, 0);
                 dead_ = dead;
                 break;
             }
             case prop::Model: {
+                // Applied by suppressPopulation() once the model has streamed in.
                 auto model = static_cast<Hash>(v.asInt());
-                if (ensureModel(model)) {
-                    PLAYER::SET_PLAYER_MODEL(PLAYER::PLAYER_ID(), model);
-                    me = PLAYER::PLAYER_PED_ID();
-                    PED::SET_PED_DEFAULT_COMPONENT_VARIATION(me);
-                    STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
+                if (model && model != ENTITY::GET_ENTITY_MODEL(me) && STREAMING::IS_MODEL_IN_CDIMAGE(model)) {
+                    pendingSelfModel_ = model;
+                    ensureModel(model);
                 }
                 break;
             }
@@ -473,12 +523,14 @@ void GameClient::onSetPosition(const SetPosition& sp) {
             TASK::CLEAR_PED_TASKS_IMMEDIATELY(me);
         }
         dead_ = false;
-        ENTITY::SET_ENTITY_HEALTH(me, 200, 0);
+        ENTITY::SET_ENTITY_HEALTH(me, 200, 0, 0);
         lastLocalHealth_ = 200;
         if (!spawned_) {
             spawned_ = true;
-            CAM::DO_SCREEN_FADE_IN(500);
+            CAMERA::DO_SCREEN_FADE_IN(500);
         }
+        if (!PED::IS_PED_IN_ANY_VEHICLE(me, false)) TASK::CLEAR_PED_TASKS_IMMEDIATELY(me);  // drop story-scene tasks
+        restorePlayerState();
     }
     STREAMING::REQUEST_COLLISION_AT_COORD(sp.pos.x, sp.pos.y, sp.pos.z);
     Vehicle veh = PED::IS_PED_IN_ANY_VEHICLE(me, false) ? PED::GET_VEHICLE_PED_IS_IN(me, false) : 0;
@@ -527,7 +579,7 @@ void GameClient::onVehicleTask(const VehicleTask& t) {
     Vehicle veh = vehicleHandle(t.vehicleId);
     switch (t.task) {
         case TaskKind::EnterStart:
-            if (veh) TASK::TASK_ENTER_VEHICLE(r.ped, veh, 10000, gtaSeat(t.seat), 2.0f, 1, nullptr, 0);
+            if (veh) TASK::TASK_ENTER_VEHICLE(r.ped, veh, 10000, gtaSeat(t.seat), 2.0f, 1, nullptr);
             break;
         case TaskKind::EnterWarp:
             r.vehicle = t.vehicleId;
@@ -556,6 +608,7 @@ void GameClient::onShot(const WeaponShotOut& s) {
 }
 
 void GameClient::onScriptEvent(const ScriptEvent& e) {
+    if (handleUiEvent(e)) return;
     if (e.name == "__gomp:blipRoute" && !e.args.empty() && e.args[0].kind == Value::Kind::Entity) {
         auto it = world_.find({static_cast<uint8_t>(EntityType::Blip), e.args[0].e.id});
         bool on = e.args.size() > 1 && e.args[1].b;

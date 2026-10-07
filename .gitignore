@@ -1,0 +1,10 @@
+# Build outputs
+/bin/
+/client/build/
+# Native database (downloaded, see GOMP_TODO / docs)
+natives.json
+logs/
+server-files/packages/*/admin.json
+/client-dist/*
+!/client-dist/README.md
+/server-files/data/

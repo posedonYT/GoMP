@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"runtime/metrics"
 	"strings"
-	"syscall"
 	"time"
 
 	"gomp/core/internal/server"
@@ -45,17 +44,7 @@ func readRuntime() Runtime {
 		GCCount:    ms.NumGC,
 		UptimeSec:  time.Since(started).Seconds(),
 	}
-	var ru syscall.Rusage
-	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
-		rt.CPUSeconds = float64(ru.Utime.Sec+ru.Stime.Sec) + float64(ru.Utime.Usec+ru.Stime.Usec)/1e6
-		rss := float64(ru.Maxrss)
-		if runtime.GOOS == "darwin" {
-			rss /= 1 << 20 // bytes on macOS
-		} else {
-			rss /= 1 << 10 // kilobytes on Linux
-		}
-		rt.RSSMB = rss
-	}
+	rt.CPUSeconds, rt.RSSMB = processUsage()
 	sample := []metrics.Sample{{Name: "/sched/pauses/total/gc:seconds"}}
 	metrics.Read(sample)
 	if sample[0].Value.Kind() == metrics.KindFloat64Histogram {

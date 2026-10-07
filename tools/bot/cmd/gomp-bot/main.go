@@ -19,6 +19,7 @@ func main() {
 	n := flag.Int("n", 5, "number of bots")
 	behavior := flag.String("behavior", "walker", "walker, driver, shooter or idle")
 	name := flag.String("name", "bot", "name prefix")
+	radius := flag.Float64("radius", 8, "walker/shooter wander radius around the spawn point, m (bots ignore map collisions: keep it small)")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -40,11 +41,11 @@ func main() {
 			case "driver":
 				beh = bot.NewDriver(home, 40, 15, "/veh sultan", seed)
 			case "shooter":
-				beh = bot.NewShooter(home, 20, seed)
+				beh = bot.NewShooter(home, float32(*radius), seed)
 			case "idle":
 				beh = bot.Idle{}
 			default:
-				beh = bot.NewWalker(home, 50, seed)
+				beh = bot.NewWalker(home, float32(*radius), seed)
 			}
 			// Anchor behaviours at the spawn point chosen by the server's scripts.
 			for {
