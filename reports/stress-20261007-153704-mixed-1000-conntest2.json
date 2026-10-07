@@ -1,0 +1,88 @@
+{
+  "started": "2026-10-07T15:37:04.287467+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "5s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "arm64",
+    "cpus": 10,
+    "go": "go1.27.1",
+    "os": "darwin"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.6038334980808877,
+    "deaths": 387,
+    "gcPauseP99Ms": 0.114688,
+    "goroutines": 17,
+    "heapMB": 408.2521057128906,
+    "hitsPerSec": 367.6686198130824,
+    "hostCommandsPerSec": 149.89264969967712,
+    "hostEventsPerSec": 75.92729768818724,
+    "kbInPerPlayerSec": 1.2882422707581,
+    "kbOutPerPlayerSec": 60.26012530719843,
+    "players": 1000,
+    "rssMB": 468.328125,
+    "shotsPerSec": 632.5312861672239,
+    "syncDeferredPerSec": 0,
+    "syncInPerSec": 27621.840793086576,
+    "syncOutPerSec": 1415524.7748640701,
+    "tickMaxMs": 8.836,
+    "tickP50Ms": 4.488,
+    "tickP99Ms": 8.289,
+    "vehicles": 200,
+    "violations": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1143.239,
+    "ped_p50": 66.8,
+    "ped_p95": 74.7,
+    "ped_p99": 99.8,
+    "samples": 895624,
+    "veh_p50": 66,
+    "veh_p99": 77.5
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 37.73126999999997,
+    "resends": 13,
+    "syncMsgsPerBotPerSec": 3382.8918960498327
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 8.289,
+      "limit": 10,
+      "passed": true
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 8.836,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 99.8,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

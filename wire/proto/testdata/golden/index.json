@@ -1,0 +1,202 @@
+[
+  {
+    "name": "chat",
+    "id": 32,
+    "file": "chat.bin"
+  },
+  {
+    "name": "controller_assign",
+    "id": 142,
+    "file": "controller_assign.bin"
+  },
+  {
+    "name": "enter_vehicle_complete",
+    "id": 24,
+    "file": "enter_vehicle_complete.bin"
+  },
+  {
+    "name": "enter_vehicle_request",
+    "id": 23,
+    "file": "enter_vehicle_request.bin"
+  },
+  {
+    "name": "enter_vehicle_response",
+    "id": 140,
+    "file": "enter_vehicle_response.bin"
+  },
+  {
+    "name": "entity_create",
+    "id": 129,
+    "file": "entity_create.bin"
+  },
+  {
+    "name": "entity_destroy",
+    "id": 130,
+    "file": "entity_destroy.bin"
+  },
+  {
+    "name": "entity_set_props",
+    "id": 131,
+    "file": "entity_set_props.bin"
+  },
+  {
+    "name": "exit_vehicle_complete",
+    "id": 26,
+    "file": "exit_vehicle_complete.bin"
+  },
+  {
+    "name": "exit_vehicle_request",
+    "id": 25,
+    "file": "exit_vehicle_request.bin"
+  },
+  {
+    "name": "invoke",
+    "id": 146,
+    "file": "invoke.bin"
+  },
+  {
+    "name": "ipl",
+    "id": 144,
+    "file": "ipl.bin"
+  },
+  {
+    "name": "loadout",
+    "id": 138,
+    "file": "loadout.bin"
+  },
+  {
+    "name": "notify",
+    "id": 145,
+    "file": "notify.bin"
+  },
+  {
+    "name": "passenger_sync",
+    "id": 18,
+    "file": "passenger_sync.bin"
+  },
+  {
+    "name": "passenger_sync_out",
+    "id": 134,
+    "file": "passenger_sync_out.bin"
+  },
+  {
+    "name": "ped_sync",
+    "id": 16,
+    "file": "ped_sync.bin"
+  },
+  {
+    "name": "ped_sync_noaim",
+    "id": 16,
+    "file": "ped_sync_noaim.bin"
+  },
+  {
+    "name": "play_anim",
+    "id": 147,
+    "file": "play_anim.bin"
+  },
+  {
+    "name": "player_sync_out",
+    "id": 132,
+    "file": "player_sync_out.bin"
+  },
+  {
+    "name": "proc_call",
+    "id": 34,
+    "file": "proc_call.bin"
+  },
+  {
+    "name": "proc_result_err",
+    "id": 35,
+    "file": "proc_result_err.bin"
+  },
+  {
+    "name": "proc_result_ok",
+    "id": 35,
+    "file": "proc_result_ok.bin"
+  },
+  {
+    "name": "put_into_vehicle",
+    "id": 139,
+    "file": "put_into_vehicle.bin"
+  },
+  {
+    "name": "ready",
+    "id": 28,
+    "file": "ready.bin"
+  },
+  {
+    "name": "script_event",
+    "id": 33,
+    "file": "script_event.bin"
+  },
+  {
+    "name": "self_damage",
+    "id": 22,
+    "file": "self_damage.bin"
+  },
+  {
+    "name": "set_position",
+    "id": 137,
+    "file": "set_position.bin"
+  },
+  {
+    "name": "shared_data",
+    "id": 136,
+    "file": "shared_data.bin"
+  },
+  {
+    "name": "teleport_ack",
+    "id": 27,
+    "file": "teleport_ack.bin"
+  },
+  {
+    "name": "unoccupied_sync",
+    "id": 19,
+    "file": "unoccupied_sync.bin"
+  },
+  {
+    "name": "vehicle_explode",
+    "id": 148,
+    "file": "vehicle_explode.bin"
+  },
+  {
+    "name": "vehicle_sync",
+    "id": 17,
+    "file": "vehicle_sync.bin"
+  },
+  {
+    "name": "vehicle_sync_out",
+    "id": 133,
+    "file": "vehicle_sync_out.bin"
+  },
+  {
+    "name": "vehicle_task",
+    "id": 141,
+    "file": "vehicle_task.bin"
+  },
+  {
+    "name": "weapon_hit",
+    "id": 21,
+    "file": "weapon_hit.bin"
+  },
+  {
+    "name": "weapon_shot",
+    "id": 20,
+    "file": "weapon_shot.bin"
+  },
+  {
+    "name": "weapon_shot_out",
+    "id": 135,
+    "file": "weapon_shot_out.bin"
+  },
+  {
+    "name": "welcome",
+    "id": 128,
+    "file": "welcome.bin"
+  },
+  {
+    "name": "world",
+    "id": 143,
+    "file": "world.bin"
+  }
+]

@@ -1,0 +1,122 @@
+'use strict';
+// Mirrors wire/proto/types.go.
+
+const EntityType = Object.freeze({
+  player: 1,
+  vehicle: 2,
+  object: 3,
+  ped: 4,
+  blip: 5,
+  checkpoint: 6,
+  marker: 7,
+  colshape: 8,
+  textlabel: 9,
+  dummy: 10,
+});
+
+const EntityTypeName = Object.freeze(
+  Object.fromEntries(Object.entries(EntityType).map(([k, v]) => [v, k])),
+);
+
+const Prop = Object.freeze({
+  model: 1,
+  position: 2,
+  rotation: 3,
+  alpha: 5,
+  frozen: 6,
+  name: 10,
+  health: 11,
+  armour: 12,
+  weapon: 13,
+  heading: 14,
+  clothes: 15,
+  accessories: 16,
+  headBlend: 17,
+  faceFeatures: 18,
+  headOverlays: 19,
+  decorations: 20,
+  hairColor: 21,
+  eyeColor: 22,
+  dead: 23,
+  vehicle: 24,
+  invincible: 25,
+  dynamic: 26,
+  walkingStyle: 27,
+  gameType: 28,
+  colors: 30,
+  colorRGB: 31,
+  numberPlate: 32,
+  engine: 33,
+  locked: 34,
+  bodyHealth: 35,
+  engineHealth: 36,
+  livery: 38,
+  mods: 39,
+  neon: 40,
+  windowTint: 41,
+  wheelType: 42,
+  wheelColor: 43,
+  pearlColor: 44,
+  extras: 45,
+  siren: 46,
+  taxiLights: 47,
+  movable: 48,
+  dashboardColor: 49,
+  trimColor: 50,
+  numberPlateType: 51,
+  customTires: 52,
+  paint: 53,
+  blipSprite: 60,
+  blipColor: 61,
+  blipName: 62,
+  blipScale: 63,
+  blipShortRange: 64,
+  blipDrawDistance: 65,
+  blipRotation: 66,
+  markerType: 70,
+  markerScale: 71,
+  markerColor: 72,
+  markerDirection: 73,
+  visible: 74,
+  checkpointType: 80,
+  checkpointRadius: 81,
+  checkpointColor: 82,
+  destination: 83,
+  labelText: 90,
+  labelColor: 91,
+  labelDrawDistance: 92,
+  labelLOS: 93,
+  labelFont: 94,
+});
+
+const PedFlags = Object.freeze({
+  aiming: 1 << 0,
+  reloading: 1 << 1,
+  inMelee: 1 << 2,
+  jumping: 1 << 3,
+  climbing: 1 << 4,
+  onLadder: 1 << 5,
+  inCover: 1 << 6,
+  crouching: 1 << 7,
+  ragdoll: 1 << 8,
+  falling: 1 << 9,
+  parachuting: 1 << 10,
+  swimming: 1 << 11,
+  enteringVehicle: 1 << 12,
+  leavingVehicle: 1 << 13,
+});
+
+const VehicleFlags = Object.freeze({
+  engineOn: 1 << 0,
+  lightsOn: 1 << 1,
+  highBeams: 1 << 2,
+  horn: 1 << 3,
+  siren: 1 << 4,
+  handbrake: 1 << 5,
+});
+
+const ShapeType = Object.freeze(['circle', 'sphere', 'tube', 'rectangle', 'cuboid', 'polygon']);
+
+const GLOBAL_DIMENSION = 4294967295;
+
+module.exports = { EntityType, EntityTypeName, Prop, PedFlags, VehicleFlags, ShapeType, GLOBAL_DIMENSION };

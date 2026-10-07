@@ -1,0 +1,88 @@
+{
+  "started": "2026-10-07T15:32:09.782874+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "1m0s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "20ms",
+    "latency": "30ms",
+    "loss": 0.05,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "arm64",
+    "cpus": 10,
+    "go": "go1.27.1",
+    "os": "darwin"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.6419005749075726,
+    "deaths": 4583,
+    "gcPauseP99Ms": 0.16384,
+    "goroutines": 17,
+    "heapMB": 273.13401794433594,
+    "hitsPerSec": 348.7192845580156,
+    "hostCommandsPerSec": 152.2797448360988,
+    "hostEventsPerSec": 76.25634512498262,
+    "kbInPerPlayerSec": 1.239917529948564,
+    "kbOutPerPlayerSec": 61.23056271089366,
+    "players": 1000,
+    "rssMB": 512.921875,
+    "shotsPerSec": 610.4001791206605,
+    "syncDeferredPerSec": 0,
+    "syncInPerSec": 26001.51684639187,
+    "syncOutPerSec": 1410492.5175778903,
+    "tickMaxMs": 29.628,
+    "tickP50Ms": 4.401,
+    "tickP99Ms": 8.631,
+    "vehicles": 200,
+    "violations": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1334.561,
+    "ped_p50": 100.3,
+    "ped_p95": 133.3,
+    "ped_p99": 164,
+    "samples": 9980293,
+    "veh_p50": 100,
+    "veh_p99": 138.1
+  },
+  "bots": {
+    "avgLoss": 0.04931901481618234,
+    "avgRttMs": 84.90522500000012,
+    "resends": 4583,
+    "syncMsgsPerBotPerSec": 1594.6592449754646
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 8.631,
+      "limit": 10,
+      "passed": true
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 29.628,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 164,
+      "limit": 250,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

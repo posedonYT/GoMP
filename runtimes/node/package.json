@@ -1,0 +1,14 @@
+{
+  "name": "@gomp/node-host",
+  "version": "0.1.0",
+  "description": "RAGE.MP-compatible server scripting runtime for the GoMP core",
+  "main": "host.js",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

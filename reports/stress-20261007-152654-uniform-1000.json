@@ -1,0 +1,89 @@
+{
+  "started": "2026-10-07T15:26:54.437868+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "1m0s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "uniform",
+    "spread": 3000
+  },
+  "host": {
+    "arch": "arm64",
+    "cpus": 10,
+    "go": "go1.27.1",
+    "os": "darwin"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 0.8923755527898396,
+    "deaths": 51,
+    "gcPauseP99Ms": 0.13107200000000002,
+    "goroutines": 17,
+    "heapMB": 294.8553466796875,
+    "hitsPerSec": 3.9602594096987764,
+    "hostCommandsPerSec": 1.7638130144036566,
+    "hostEventsPerSec": 0.8486270163640235,
+    "kbInPerPlayerSec": 1.298170538537446,
+    "kbOutPerPlayerSec": 3.534798977814214,
+    "players": 1000,
+    "rssMB": 375.953125,
+    "shotsPerSec": 7.2382892572225535,
+    "syncDeferredPerSec": 0,
+    "syncInPerSec": 29968.19813918868,
+    "syncOutPerSec": 87481.0154973029,
+    "tickMaxMs": 33.947,
+    "tickP50Ms": 2.097,
+    "tickP99Ms": 6.583,
+    "vehicles": 200,
+    "violations": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1104.442,
+    "ped_p50": 66.3,
+    "ped_p95": 70.6,
+    "ped_p99": 73,
+    "samples": 616846,
+    "veh_p50": 66.3,
+    "veh_p99": 72.9
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 31.777918999999986,
+    "resends": 0,
+    "syncMsgsPerBotPerSec": 96.70633995372368
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 6.583,
+      "limit": 10,
+      "passed": true
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 33.947,
+      "limit": 33.3,
+      "passed": false
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 73,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": false
+}

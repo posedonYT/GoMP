@@ -1,0 +1,88 @@
+{
+  "started": "2026-10-07T15:29:06.841541+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "1m0s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "hotspot"
+  },
+  "host": {
+    "arch": "arm64",
+    "cpus": 10,
+    "go": "go1.27.1",
+    "os": "darwin"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.0668209159310125,
+    "deaths": 1072,
+    "gcPauseP99Ms": 0.196608,
+    "goroutines": 17,
+    "heapMB": 352.1971206665039,
+    "hitsPerSec": 81.51495428799343,
+    "hostCommandsPerSec": 35.77406648687199,
+    "hostEventsPerSec": 17.83711594136129,
+    "kbInPerPlayerSec": 1.300383725741886,
+    "kbOutPerPlayerSec": 26.589420827671827,
+    "players": 1000,
+    "rssMB": 394.65625,
+    "shotsPerSec": 138.2875658476247,
+    "syncDeferredPerSec": 26863.678314630906,
+    "syncInPerSec": 29444.552583799385,
+    "syncOutPerSec": 633345.0215123211,
+    "tickMaxMs": 13.948,
+    "tickP50Ms": 2.51,
+    "tickP99Ms": 6.244,
+    "vehicles": 200,
+    "violations": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1142.528,
+    "ped_p50": 66.6,
+    "ped_p95": 72.1,
+    "ped_p99": 74.3,
+    "samples": 4696644,
+    "veh_p50": 66.5,
+    "veh_p99": 73.9
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 36.05973900000002,
+    "resends": 1,
+    "syncMsgsPerBotPerSec": 748.7325092210534
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 6.244,
+      "limit": 10,
+      "passed": true
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 13.948,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 74.3,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

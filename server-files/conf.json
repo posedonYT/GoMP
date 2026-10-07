@@ -1,0 +1,23 @@
+{
+  "maxplayers": 1000,
+  "name": "GoMP Freeroam",
+  "gamemode": "freeroam",
+  "stream-distance": 300.0,
+  "announce": false,
+  "bind": "0.0.0.0",
+  "port": 22005,
+  "encryption": true,
+  "enable-nodejs": true,
+  "csharp": "disabled",
+  "language": "ru",
+  "gomp": {
+    "tick-rate": 30,
+    "max-streamed-players": 128,
+    "max-streamed-vehicles": 128,
+    "bandwidth-per-player": 131072,
+    "admin-bind": "127.0.0.1:22010",
+    "anticheat": true,
+    "headshot-multiplier": 2.0,
+    "log-level": "info"
+  }
+}
