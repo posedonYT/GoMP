@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    gomp-addons: installs add-on vehicle packs (dlc.rpf) for GoMP sessions.
+    Archives are handled by tools/gta (CodeWalker.Core, see tools/Directory.Build.props).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>gomp-addons</AssemblyName>
+    <RootNamespace>GoMP.Addons</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../gta/GoMP.Gta.csproj" />
+  </ItemGroup>
+</Project>

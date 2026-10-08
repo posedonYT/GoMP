@@ -199,11 +199,22 @@ void GameClient::detectSelfDamage() {
     if (lastLocalHealth_ < 0) lastLocalHealth_ = hp;
     int healthLoss = std::max(0, lastLocalHealth_ - hp);
     int armourLoss = std::max(0, serverArmour_ - armour);
-    if (healthLoss > 0 || armourLoss > 0) {
+    // A seat belt keeps the player unhurt in crashes (the vehicle itself still takes damage).
+    const bool inVeh = PED::IS_PED_IN_ANY_VEHICLE(me, false);
+    // Not against fire, an exploded vehicle or water: a sinking car still drowns its occupants.
+    const Vehicle seat = inVeh ? PED::GET_VEHICLE_PED_IS_IN(me, false) : 0;
+    const bool belt = belted_ && seat && !ENTITY::IS_ENTITY_DEAD(seat, false) && !FIRE::IS_ENTITY_ON_FIRE(me) &&
+                      !ENTITY::IS_ENTITY_IN_WATER(seat);
+    if ((healthLoss > 0 || armourLoss > 0) && belt) {
+        ENTITY::SET_ENTITY_HEALTH(me, 100 + serverHealth_, 0, 0);
+        PED::SET_PED_ARMOUR(me, serverArmour_);
+        ENTITY::CLEAR_ENTITY_LAST_DAMAGE_ENTITY(me);
+        hp = ENTITY::GET_ENTITY_HEALTH(me);
+    } else if (healthLoss > 0 || armourLoss > 0) {
         SelfDamage d;
         if (FIRE::IS_ENTITY_ON_FIRE(me)) d.cause = DamageCause::Fire;
         else if (ENTITY::IS_ENTITY_IN_WATER(me) && PED::IS_PED_SWIMMING_UNDER_WATER(me)) d.cause = DamageCause::Drown;
-        else if (PED::IS_PED_IN_ANY_VEHICLE(me, false) || ENTITY::HAS_ENTITY_BEEN_DAMAGED_BY_ANY_VEHICLE(me)) d.cause = DamageCause::Vehicle;
+        else if (inVeh || ENTITY::HAS_ENTITY_BEEN_DAMAGED_BY_ANY_VEHICLE(me)) d.cause = DamageCause::Vehicle;
         else if (PED::IS_PED_FALLING(me) || PED::IS_PED_RAGDOLL(me)) d.cause = DamageCause::Fall;
         else d.cause = DamageCause::Explosion;
         d.health = static_cast<uint8_t>(std::min(255, healthLoss));
@@ -263,6 +274,7 @@ void GameClient::handleVehicleKeys() {
         PAD::DISABLE_CONTROL_ACTION(0, kInputVehExit, true);
         if (!exiting_ && PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, kInputVehExit)) {
             exiting_ = true;
+            if (belted_) setBelt(false);  // unbuckled on the way out
             send(ExitVehicleRequest{});
             TASK::TASK_LEAVE_VEHICLE(me, PED::GET_VEHICLE_PED_IS_IN(me, false), 0);
         }

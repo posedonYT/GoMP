@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -140,6 +141,15 @@ void removeWheelSlowMotion() {
 void apply() {
     skipLandingPage();
     removeWheelSlowMotion();
+    // The client log starts only once the game has loaded: a crash while loading
+    // would hide the patch results, so they are written at once as well.
+    if (FILE* f = std::fopen("gomp-boot.log", "w")) {
+        for (const auto& line : g_log) {
+            std::fputs(line.c_str(), f);
+            std::fputc('\n', f);
+        }
+        std::fclose(f);
+    }
 }
 
 const std::vector<std::string>& log() { return g_log; }

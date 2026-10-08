@@ -2,6 +2,11 @@
 // and a few freeroam commands. Written only against the RAGE.MP server API.
 
 const roleplay = require('./roleplay');
+const vehicles = require('./vehicles');
+require('./places');
+require('./houses');
+require('./phone');
+require('./maps');
 require('./admin');
 
 // Chat and commands are available once a character is in the game.
@@ -35,21 +40,14 @@ function command(name, fn) {
 }
 
 command('help', (player) => {
-  player.outputChatBox('Команды: /veh [модель], /tp x y z, /pos, /money, /pay <id> <сумма>, /time ч, /weather тип. Консоль: \\');
+  player.outputChatBox('Команды: /veh [модель], /tp x y z, /pos, /money, /pay <статик> <сумма>, /time ч, /weather тип. Клиент: /perf /status /reconnect. Админ: /ahelp');
+  player.outputChatBox('Клавиши: Tab инвентарь, 1-9 быстрые слоты, E действие, G меню транспорта, L замок, J ремень, стрелка вверх — телефон, F2 меню, T чат');
+  player.outputChatBox('Машины: /veh vaz2107, /veh m5, /veh rs7, /veh g37s, /veh agera, /veh regera, /veh jesko, /veh veyron, /veh cullinan или любая модель GTA. Тюнинг: LSC на карте');
+  player.outputChatBox('Недвижимость: дома (зелёные домики на карте) покупаются у двери, E — меню дома, гараж — подъехать к своему дому');
 });
 
-command('veh', (player, _, model = 'sultan') => {
-  const old = player.getVariable('personalVehicle');
-  if (old && mp.vehicles.exists(old)) old.destroy();
-  const pos = player.position;
-  const veh = mp.vehicles.new(mp.joaat(model), new mp.Vector3(pos.x, pos.y, pos.z + 0.5), {
-    heading: player.heading,
-    numberPlate: player.name.slice(0, 8).toUpperCase(),
-    dimension: player.dimension,
-    engine: true,
-  });
-  player.setVariable('personalVehicle', veh);
-  player.putIntoVehicle(veh, 0);
+command('veh', (player, _, name = 'sultan') => {
+  vehicles.spawnFor(player, name);
 });
 
 command('tp', (player, _, x, y, z) => {
@@ -68,11 +66,11 @@ command('money', (player) => {
   player.outputChatBox(`Наличные: $${ch.cash}, на карте: $${ch.bank}`);
 });
 
-command('pay', (player, _, id, amount) => {
-  const target = mp.players.at(Number(id));
+command('pay', (player, _, statik, amount) => {
+  const target = roleplay.findByStatic(statik);
   const sum = Math.floor(Number(amount));
   const from = roleplay.character(player);
-  if (!target || target === player || !roleplay.isLogged(target)) return player.outputChatBox('Использование: /pay <id> <сумма>');
+  if (!target || target === player || !roleplay.isLogged(target)) return player.outputChatBox('Использование: /pay <статик> <сумма>');
   if (!(sum > 0) || sum > from.cash) return player.outputChatBox('!{#f66}Недостаточно наличных');
   if (target.position.subtract(player.position).length() > 5) return player.outputChatBox('!{#f66}Игрок слишком далеко');
   const to = roleplay.character(target);

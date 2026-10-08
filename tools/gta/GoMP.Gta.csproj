@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- GTA V archives (RPF) for the GoMP tools: opening, finding, packing and replacing files. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GoMP.Gta</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(CodeWalkerDir)/CodeWalker.Core/CodeWalker.Core.csproj" />
+  </ItemGroup>
+</Project>

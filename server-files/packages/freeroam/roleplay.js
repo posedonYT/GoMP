@@ -13,6 +13,9 @@
 // Shared variables: static (everyone), own: cash, bank.
 
 const accounts = require('./accounts');
+const inventory = require('./inventory');
+const vehicles = require('./vehicles');
+const drops = require('./drops');
 
 const LOBBY = new mp.Vector3(-425.5, 1123.6, 325.85);  // Galileo Observatory
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -65,6 +68,7 @@ function enterLobby(player) {
   player.removeAllWeapons();
   player.position = LOBBY;
   player.call('gomp:auth:show', [{}]);
+  require('./houses').send(player);
 }
 
 mp.events.add('playerJoin', (player) => {
@@ -90,6 +94,7 @@ function spawnGuest(player) {
   applyAppearance(player, ch);
   player.dimension = 0;
   player.spawn(randomSpawn(), 0);
+  require('./houses').send(player);
   broadcastOnline();
 }
 
@@ -156,10 +161,13 @@ function applyAppearance(player, ch) {
   player.setHeadOverlay(1, a.beard >= 0 ? [a.beard, 1, a.hairColor, a.hairColor] : [255, 0, 0, 0]);
 }
 
+// Weapons live in the inventory: the character starts unarmed (keys 1-9 take them).
 function giveItems(player, ch) {
-  player.removeAllWeapons();
-  for (const [weapon, ammo] of Object.entries(ch.weapons || {})) player.giveWeapon(mp.joaat(weapon), ammo);
-  player.armour = ch.armour || 0;
+  inventory.holster(player);
+  if (ch.armour) {
+    player.armour = ch.armour;
+    ch.armour = 0;  // the starter armour is given once
+  }
 }
 
 function spawnPersonalVehicle(player, ch) {
@@ -172,7 +180,9 @@ function spawnPersonalVehicle(player, ch) {
     numberPlate: `GO${String(ch.static).padStart(5, '0')}`,
     dimension: player.dimension,
   });
+  vehicles.setup(veh, ch.static, ch.vehicleFuel);
   player.setVariable('personalVehicle', veh);
+  for (const fn of vehicles.onSpawn) fn(veh, player);
 }
 
 function spawnCharacter(player, ch, isNew = false) {
@@ -182,11 +192,17 @@ function spawnCharacter(player, ch, isNew = false) {
   player.setVariable('static', ch.static);
   player.setOwnVariables({ cash: ch.cash, bank: ch.bank, account: s.account.login, kit: ch.kit, gender: ch.gender });
   applyAppearance(player, ch);
+  inventory.ensure(ch);
+  inventory.applyEquipment(player, ch);
+  inventory.sendDefs(player);
   player.dimension = 0;
   const pos = ch.pos ? new mp.Vector3(ch.pos[0], ch.pos[1], ch.pos[2]) : randomSpawn();
   player.spawn(pos, ch.heading || 0);
   giveItems(player, ch);
   player.call('gomp:ui:close', []);
+  inventory.sync(player, ch);
+  require('./places').sendPlaces(player);
+  require('./houses').send(player);
   spawnPersonalVehicle(player, ch);
   player.outputChatBox(isNew
     ? `!{#8ef}Добро пожаловать, ${ch.first}! Ваш статик: ${ch.static}.`
@@ -202,6 +218,7 @@ mp.events.add('playerDeath', (player) => {
     if (!mp.players.exists(player)) return;
     player.spawn(randomSpawn(), 0);
     giveItems(player, ch);
+    if (!ch.guest) inventory.sync(player, ch);
   }, 3000);
 });
 
@@ -235,6 +252,46 @@ mp.events.add('gomp:anim', (player, index) => {
   return player.playAnimation(anim[0], anim[1], 8, anim[2]);
 });
 
+// ------------------------------------------------------------------ inventory
+
+function withCharacter(fn) {
+  return (player, ...args) => {
+    const ch = character(player);
+    if (ch && !ch.guest) fn(player, ch, ...args);
+  };
+}
+
+mp.events.add('gomp:inv:move', withCharacter((player, ch, from, fi, to, ti, count) => inventory.move(player, ch, String(from), Number(fi), String(to), Number(ti), count)));
+mp.events.add('gomp:inv:use', withCharacter((player, ch, c, i) => inventory.use(player, ch, String(c), Number(i))));
+mp.events.add('gomp:inv:usekey', withCharacter((player, ch, key) => inventory.ITEMS[String(key)] && inventory.useKey(player, ch, String(key))));
+mp.events.add('gomp:inv:drop', withCharacter((player, ch, c, i, count) => {
+  if (player.vehicle) return player.notify('~r~Нельзя выбросить в транспорте');
+  const item = inventory.take(player, ch, String(c), Number(i), count);
+  return item && drops.spawn(player, item);
+}));
+mp.events.add('gomp:drop:pickup', withCharacter((player, ch, id) => drops.pickup(player, ch, id)));
+mp.events.add('gomp:inv:hotkey', withCharacter((player, ch, n) => inventory.hotkey(player, ch, Number(n))));
+// The client knows which arms and undershirt the game forces for the worn top.
+mp.events.add('gomp:inv:fixtop', withCharacter((player, ch, torso, undershirt) => {
+  const top = ch.inventory && ch.inventory.equip[0];
+  if (!top || !top.data) return;
+  const t = Math.round(Number(torso));
+  const u = Math.round(Number(undershirt));
+  if (!(t >= 0 && t < 300) || top.data.torso === t && (!(u >= 0) || top.data.undershirt === u)) return;
+  top.data.torso = t;
+  if (u >= 0 && u < 300) top.data.undershirt = u;
+  inventory.applyEquipment(player, ch);
+  accounts.save();
+}));
+
+// Cartridges fired are taken from the inventory.
+setInterval(() => {
+  mp.players.forEach((player) => {
+    const ch = character(player);
+    if (ch && !ch.guest) inventory.reconcileAmmo(player, ch);
+  });
+}, 1000);
+
 // ------------------------------------------------------------------ money
 
 function setMoney(player, cash, bank) {
@@ -265,8 +322,14 @@ setInterval(() => {
 
 mp.events.add('playerQuit', (player) => {
   storePosition(player);
+  const ch = character(player);
+  if (ch && !ch.guest) inventory.reconcileAmmo(player, ch);
+  inventory.held.delete(player.id);
   const veh = player.getVariable('personalVehicle');
-  if (veh && mp.vehicles.exists(veh)) veh.destroy();
+  if (veh && mp.vehicles.exists(veh)) {
+    if (ch && !ch.guest && ch.vehicle && veh.model === mp.joaat(ch.vehicle)) ch.vehicleFuel = vehicles.fuelOf(veh);
+    veh.destroy();
+  }
   sessions.delete(player.id);
   accounts.save();
   setTimeout(broadcastOnline, 100);
@@ -277,4 +340,43 @@ mp.events.add('serverShutdown', () => {
   accounts.flush();
 });
 
-module.exports = { isLogged, character, setMoney, randomSpawn };
+// A player in the game by the static of their character.
+function findByStatic(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return null;
+  return mp.players.toArray().find((p) => p.getVariable('static') === n) || null;
+}
+
+// The card statement shown by the phone's bank app: the last operations.
+const BANK_LOG_SIZE = 30;
+function logBank(ch, sum, text) {
+  if (!ch || ch.guest || !sum) return;
+  ch.bankLog = ch.bankLog || [];
+  ch.bankLog.push({ at: Date.now(), sum: Math.round(sum), text: String(text || '') });
+  if (ch.bankLog.length > BANK_LOG_SIZE) ch.bankLog.splice(0, ch.bankLog.length - BANK_LOG_SIZE);
+}
+
+// Takes money from cash (method 'cash') or the card ('bank'); false when there is not enough.
+// What was paid for goes into the card statement.
+function pay(player, sum, method, what = 'Оплата картой') {
+  const ch = character(player);
+  const n = Math.round(Number(sum));
+  if (!ch || !(n >= 0)) return false;
+  if (method === 'bank') {
+    if (ch.bank < n) return false;
+    logBank(ch, -n, what);
+    return setMoney(player, ch.cash, ch.bank - n);
+  }
+  return ch.cash >= n && setMoney(player, ch.cash - n, ch.bank);
+}
+
+// Money onto the card (a house sold, a transfer received).
+function deposit(player, sum, what) {
+  const ch = character(player);
+  const n = Math.round(Number(sum));
+  if (!ch || !(n > 0)) return false;
+  logBank(ch, n, what);
+  return setMoney(player, ch.cash, ch.bank + n);
+}
+
+module.exports = { isLogged, character, setMoney, pay, deposit, logBank, randomSpawn, findByStatic };

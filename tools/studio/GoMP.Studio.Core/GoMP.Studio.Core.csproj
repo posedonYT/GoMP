@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- GoMP Studio without the web part: maps, rotations, game data, model export, vehicles. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GoMP.Studio</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../gta/GoMP.Gta.csproj" />
+  </ItemGroup>
+</Project>

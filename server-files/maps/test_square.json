@@ -1,0 +1,40 @@
+{
+  "format": "gomp-map",
+  "version": 1,
+  "name": "test_square",
+  "enabled": true,
+  "objects": [
+    {
+      "id": "z7shtl",
+      "model": "prop_bench_01a",
+      "pos": [
+        194.4,
+        -926,
+        30.022451
+      ],
+      "rot": [
+        0,
+        0,
+        180
+      ],
+      "dimension": 0,
+      "alpha": 255
+    },
+    {
+      "id": "o28gj6",
+      "model": "prop_bench_01a",
+      "pos": [
+        213.4,
+        -940,
+        30.022451
+      ],
+      "rot": [
+        0,
+        0,
+        165
+      ],
+      "dimension": 0,
+      "alpha": 255
+    }
+  ]
+}

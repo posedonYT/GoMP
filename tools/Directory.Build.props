@@ -1,0 +1,15 @@
+<Project>
+  <!--
+    Shared by the .NET tools (tools/gta, tools/addons, tools/studio). They read and
+    write GTA V archives with CodeWalker.Core (MIT, https://github.com/dexyfex/CodeWalker).
+    Point CodeWalkerDir at a CodeWalker checkout:
+      dotnet build tools/studio/GoMP.Studio -p:CodeWalkerDir=C:\path\to\CodeWalker
+  -->
+  <PropertyGroup>
+    <CodeWalkerDir Condition="'$(CodeWalkerDir)' == '' and '$(OS)' == 'Windows_NT'">$(USERPROFILE)\tools\CodeWalker</CodeWalkerDir>
+    <CodeWalkerDir Condition="'$(CodeWalkerDir)' == ''">$(HOME)/tools/CodeWalker</CodeWalkerDir>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

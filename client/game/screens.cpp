@@ -18,10 +18,6 @@ namespace {
 constexpr int kInputCursorX = 239, kInputCursorY = 240, kInputCursorAccept = 237;
 constexpr std::size_t kMaxFieldLength = 20;
 
-const Rgba kPanel{12, 14, 20, 225}, kPanelLight{30, 34, 46, 235}, kAccent{64, 156, 255, 255},
-    kAccentHover{96, 176, 255, 255}, kButton{44, 50, 66, 255}, kButtonHover{62, 70, 92, 255}, kText{235, 238, 245, 255},
-    kMuted{150, 158, 175, 255}, kError{255, 96, 96, 255}, kField{24, 27, 36, 255}, kFieldFocus{34, 40, 56, 255};
-
 const char* const kKits[] = {"Гражданский", "Водитель", "Охрана"};
 const char* const kKitInfo[] = {
     "$5 000 наличными и $10 000 на карте",
@@ -35,17 +31,7 @@ int wrap(int v, int lo, int hi) {
     return lo + ((v - lo) % n + n) % n;
 }
 
-const Value* field(const Value& m, const char* key) { return m.kind == Value::Kind::Map ? m.get(key) : nullptr; }
-
-std::string str(const Value& m, const char* key) {
-    const Value* v = field(m, key);
-    return v && v->kind == Value::Kind::String ? v->s : std::string();
-}
-
-long long num(const Value& m, const char* key) {
-    const Value* v = field(m, key);
-    return v ? v->asInt() : 0;
-}
+using props::field;
 
 Value mapValue(std::vector<std::pair<std::string, Value>> kv) {
     Value v;
@@ -117,15 +103,20 @@ const Outfit& outfitOf(bool female, int i) { return (female ? kFemaleOutfits : k
 std::string outfitName(bool female, int i) { return outfitOf(female, i).name; }
 }  // namespace
 
+// Arms (type 3) or undershirt (type 8) the game forces for a top; fallback when none.
+int topForcedDrawable(Ped ped, int drawable, int texture, int type, int fallback) {
+    return forcedDrawable(ped, 11, drawable, texture, type, fallback);
+}
+
 // ------------------------------------------------------------------ events
 
 bool GameClient::handleUiEvent(const ScriptEvent& e) {
     const auto& a = e.args;
     if (e.name == "gomp:auth:show") {
         uiBusy_ = false;
-        uiError_ = a.empty() ? "" : str(a[0], "error");
+        uiError_ = a.empty() ? "" : props::fieldStr(a[0], "error");
         if (!a.empty()) {
-            if (auto l = str(a[0], "login"); !l.empty()) loginName_ = l;
+            if (auto l = props::fieldStr(a[0], "login"); !l.empty()) loginName_ = l;
             if (const Value* r = field(a[0], "register")) registerMode_ = r->asNumber() != 0;
         }
         loginPassword_.clear();
@@ -140,13 +131,13 @@ bool GameClient::handleUiEvent(const ScriptEvent& e) {
         if (!a.empty() && a[0].kind == Value::Kind::Array) {
             for (const auto& c : a[0].arr) {
                 CharInfo ci;
-                ci.id = static_cast<int>(num(c, "id"));
-                ci.statik = static_cast<int>(num(c, "static"));
-                ci.first = str(c, "first");
-                ci.last = str(c, "last");
-                ci.female = str(c, "gender") == "f";
-                ci.cash = num(c, "cash");
-                ci.bank = num(c, "bank");
+                ci.id = static_cast<int>(props::fieldInt(c, "id"));
+                ci.statik = static_cast<int>(props::fieldInt(c, "static"));
+                ci.first = props::fieldStr(c, "first");
+                ci.last = props::fieldStr(c, "last");
+                ci.female = props::fieldStr(c, "gender") == "f";
+                ci.cash = props::fieldInt(c, "cash");
+                ci.bank = props::fieldInt(c, "bank");
                 chars_.push_back(ci);
             }
         }
@@ -166,6 +157,14 @@ bool GameClient::handleUiEvent(const ScriptEvent& e) {
     }
     if (e.name == "gomp:ui:close") {
         closeScreens();
+        return true;
+    }
+    if (e.name == "gomp:inv:defs") {
+        if (!a.empty()) onInventoryDefs(a[0]);
+        return true;
+    }
+    if (e.name == "gomp:inv:sync") {
+        if (!a.empty()) onInventorySync(a[0]);
         return true;
     }
     if (e.name == "gomp:hud:online") {
@@ -205,6 +204,8 @@ void GameClient::openScreen(Screen s) {
 }
 
 void GameClient::closeScreens() {
+    if (screen_ == Screen::Tuning) endTuning();
+    if (screen_ == Screen::Phone) closePhone();
     screen_ = Screen::None;
     screenActive_ = false;
     focus_ = nullptr;
@@ -234,50 +235,67 @@ bool GameClient::uiBlocksPause() {
 
 bool GameClient::uiButton(float x, float y, float w, float h, const std::string& text, bool primary, bool enabled) {
     bool hover = enabled && mouseX_ >= x && mouseX_ <= x + w && mouseY_ >= y && mouseY_ <= y + h;
-    Rgba bg = !enabled ? kPanelLight : primary ? (hover ? kAccentHover : kAccent) : (hover ? kButtonHover : kButton);
-    rect(x, y, w, h, bg);
-    drawTextAligned(text, x + w / 2, y + h / 2 - 0.015f, 0.38f, 4, enabled ? kText : kMuted, Align::Center);
+    Rgba bg = !enabled ? theme::Surface : primary ? (hover ? theme::AccentHi : theme::Accent) : (hover ? theme::SurfaceHi : theme::Surface);
+    Rgba fg = !enabled ? theme::Muted : primary ? theme::OnAccent : theme::Text;
+    roundRect(x, y, w, h, bg, 6);
+    label(text, x + w / 2, y, 0.36f, fg, Align::Center, h);
     return hover && mouseClick_;
 }
 
-void GameClient::uiTextField(float x, float y, float w, const std::string& label, std::string& value, bool password) {
-    drawTextAligned(label, x, y, 0.32f, 4, kMuted, Align::Left);
-    const float fy = y + 0.026f, fh = 0.036f;
+void GameClient::uiTextField(float x, float y, float w, const std::string& caption, std::string& value, bool password) {
+    label(caption, x, y, 0.29f, theme::Muted);
+    const float fy = y + 0.024f, fh = 0.038f;
     bool focused = focus_ == &value;
-    rect(x, fy, w, fh, focused ? kFieldFocus : kField);
-    if (focused) rect(x, fy + fh - 0.003f, w, 0.003f, kAccent);
+    panel(x, fy, w, fh, focused ? theme::SurfaceHi : theme::Surface, focused ? theme::Accent : theme::Border, 6);
     std::string shown = password ? std::string(value.size(), '*') : value;
-    if (focused && (GetTickCount() / 500) % 2 == 0) shown += "_";
-    drawTextAligned(shown, x + 0.006f, fy + 0.004f, 0.38f, 4, kText, Align::Left);
+    if (focused && (GetTickCount() / 500) % 2 == 0) shown += "|";
+    label(shown, x + 0.008f, fy, 0.37f, theme::Text, Align::Left, fh);
     if (focused) {
         const bool latinOnly = &value == &loginName_ || &value == &loginPassword_;
-        drawTextAligned(latinOnly ? "[EN]" : langTag(), x + w - 0.004f, fy + 0.008f, 0.3f, 4, kMuted, Align::Right);
+        label(latinOnly ? "EN" : (lang_.load() == Lang::Ru ? "RU" : "EN"), x + w - 0.007f, fy, 0.28f, theme::Accent, Align::Right, fh);
     }
     if (mouseClick_ && mouseX_ >= x && mouseX_ <= x + w && mouseY_ >= fy && mouseY_ <= fy + fh) focus_ = &value;
     focusDrawn_.push_back(&value);
 }
 
-// A row "label   <  value  >"; returns -1 or +1 when an arrow is clicked.
-int GameClient::uiStepper(float x, float y, float w, const std::string& label, const std::string& value) {
-    const float h = 0.03f, bw = 0.022f;
-    drawTextAligned(label, x, y + 0.002f, 0.34f, 4, kMuted, Align::Left);
-    const float vx = x + w * 0.45f, vw = w * 0.55f;
-    rect(vx, y, vw, h, kField);
-    drawTextAligned(value, vx + vw / 2, y + 0.002f, 0.34f, 4, kText, Align::Center);
+// A row "caption      < value >"; returns -1 or +1 when an arrow is clicked.
+int GameClient::uiStepper(float x, float y, float w, const std::string& caption, const std::string& value) {
+    const float h = 0.032f, bw = 0.024f;
+    label(caption, x, y, 0.33f, theme::Muted, Align::Left, h);
+    const float vx = x + w * 0.42f, vw = w * 0.58f;
+    roundRect(vx, y, vw, h, theme::Surface, 6);
+    label(value, vx + vw / 2, y, 0.33f, theme::Text, Align::Center, h);
     int delta = 0;
-    if (uiButton(vx, y, bw, h, "<")) delta = -1;
-    if (uiButton(vx + vw - bw, y, bw, h, ">")) delta = 1;
+    auto arrow = [&](float ax, const char* t) {
+        bool hover = mouseX_ >= ax && mouseX_ <= ax + bw && mouseY_ >= y && mouseY_ <= y + h;
+        if (hover) roundRect(ax, y, bw, h, theme::SurfaceHi, 6);
+        label(t, ax + bw / 2, y, 0.36f, hover ? theme::Accent : theme::Muted, Align::Center, h);
+        return hover && mouseClick_;
+    };
+    if (arrow(vx, "<")) delta = -1;
+    if (arrow(vx + vw - bw, ">")) delta = 1;
     return delta;
+}
+
+// A small uppercase section header with a turquoise tick and a hairline.
+static void sectionTitle(const std::string& s, float x, float y, float w) {
+    rect(x, y + 0.004f, 0.003f, 0.016f, theme::Accent);
+    const float tw = textWidth(s, 0.3f);
+    label(s, x + 0.008f, y, 0.3f, theme::Muted);
+    rect(x + 0.014f + tw, y + 0.012f, std::max(0.0f, w - tw - 0.016f), 0.001f, theme::Border);
 }
 
 // ------------------------------------------------------------------ frame
 
 void GameClient::tickScreens() {
-    if (screen_ == Screen::None) return;
+    if (screen_ == Screen::None || probing_) return;  // the house probe moves the player (probe.cpp)
     Ped me = PLAYER::PLAYER_PED_ID();
     PAD::DISABLE_ALL_CONTROL_ACTIONS(0);
     PAD::DISABLE_ALL_CONTROL_ACTIONS(2);
     HUD::SET_MOUSE_CURSOR_THIS_FRAME();
+    // With the phone out one can still walk and drive, unless typing.
+    if (screen_ == Screen::Phone && !focus_)
+        for (int c : {21, 30, 31, 32, 33, 34, 35, 59, 60, 63, 64, 71, 72, 76}) PAD::ENABLE_CONTROL_ACTION(0, c, true);
     if (lobbyScreen()) {
         HUD::DISPLAY_RADAR(false);
         HUD::HIDE_HUD_AND_RADAR_THIS_FRAME();
@@ -295,7 +313,9 @@ void GameClient::tickScreens() {
     LeaveCriticalSection(&chatLock_);
     bool submit = false;
     for (const auto& k : keys) {
-        if (!lobbyScreen() && (k.key == VK_ESCAPE || k.key == VK_F2)) {  // F2 menu and layout editor
+        if (!lobbyScreen() && (k.key == VK_ESCAPE || k.key == VK_F2 || (screen_ == Screen::Inventory && k.key == VK_TAB) ||
+                               (screen_ == Screen::VehMenu && k.key == 'G') ||
+                               (screen_ == Screen::Phone && k.key == VK_UP))) {  // F2 menu, inventory, G menu, phone, shops
             if (screen_ == Screen::Layout) cancelLayout();
             escHandledAt_ = GetTickCount();
             closeScreens();
@@ -316,7 +336,9 @@ void GameClient::tickScreens() {
         } else if (focus_) {
             const bool latinOnly = focus_ == &loginName_ || focus_ == &loginPassword_;
             const std::string& t = latinOnly ? k.latin : k.text;
-            if (!t.empty() && focus_->size() + t.size() <= kMaxFieldLength * 2) *focus_ += t;
+            // Messages are longer than names (bytes: Cyrillic letters take two).
+            const std::size_t limit = focus_ == &phoneText_ ? 320 : focus_ == &phoneField1_ || focus_ == &phoneField2_ ? 48 : kMaxFieldLength * 2;
+            if (!t.empty() && focus_->size() + t.size() <= limit) *focus_ += t;
         }
     }
 
@@ -334,6 +356,13 @@ void GameClient::tickScreens() {
             break;
         case Screen::Menu: drawMenu(); break;
         case Screen::Layout: drawLayout(); break;
+        case Screen::Inventory: drawInventory(); break;
+        case Screen::VehMenu: drawVehicleMenu(); break;
+        case Screen::Shop: drawShop(); break;
+        case Screen::Fuel: drawFuel(); break;
+        case Screen::Tuning: drawTuning(); break;
+        case Screen::House: drawHouse(); break;
+        case Screen::Phone: drawPhone(submit); break;
         default: break;
     }
     focusOrder_ = focusDrawn_;
@@ -354,48 +383,67 @@ void GameClient::submitLogin() {
 }
 
 void GameClient::drawLogin() {
-    const float w = 0.26f, h = 0.40f, x = 0.5f - w / 2, y = 0.28f;
-    rect(x, y, w, h, kPanel);
-    rect(x, y, w, 0.004f, kAccent);
-    drawTextAligned("GoMP", 0.5f, y + 0.02f, 0.8f, 7, kText, Align::Center);
-    drawTextAligned(registerMode_ ? "Регистрация аккаунта" : "Вход в аккаунт", 0.5f, y + 0.075f, 0.4f, 4, kMuted, Align::Center);
-    const float fx = x + 0.02f, fw = w - 0.04f;
-    uiTextField(fx, y + 0.115f, fw, "Логин", loginName_, false);
-    uiTextField(fx, y + 0.185f, fw, "Пароль", loginPassword_, true);
-    if (!uiError_.empty()) drawTextAligned(uiError_, 0.5f, y + 0.252f, 0.32f, 4, kError, Align::Center);
-    if (uiBusy_) drawTextAligned("Подождите...", 0.5f, y + 0.252f, 0.32f, 4, kMuted, Align::Center);
-    if (uiButton(fx, y + 0.285f, fw, 0.042f, registerMode_ ? "Создать аккаунт" : "Войти", true, !uiBusy_)) submitLogin();
-    if (uiButton(fx, y + 0.338f, fw, 0.034f, registerMode_ ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Регистрация")) {
-        registerMode_ = !registerMode_;
-        uiError_.clear();
+    const float w = 0.24f, h = 0.40f, x = 0.5f - w / 2, y = 0.5f - h / 2;
+    panel(x, y, w, h);
+    label("GoMP", 0.5f, y + 0.02f, 0.9f, theme::Accent, Align::Center);
+    label("ROLEPLAY", 0.5f, y + 0.075f, 0.3f, theme::Muted, Align::Center);
+    // Segmented switch: login | registration.
+    const float sx = x + 0.02f, sw = w - 0.04f, sy = y + 0.11f, segW = sw / 2;
+    roundRect(sx, sy, sw, 0.036f, theme::Surface, 8);
+    const char* segs[] = {"Вход", "Регистрация"};
+    for (int i = 0; i < 2; ++i) {
+        bool active = registerMode_ == (i == 1);
+        float bx = sx + i * segW;
+        if (active) roundRect(bx + 0.002f, sy + 0.003f, segW - 0.004f, 0.030f, theme::SurfaceHi, 7);
+        label(segs[i], bx + segW / 2, sy, 0.34f, active ? theme::Text : theme::Muted, Align::Center, 0.036f);
+        if (mouseClick_ && !active && mouseX_ >= bx && mouseX_ <= bx + segW && mouseY_ >= sy && mouseY_ <= sy + 0.036f) {
+            registerMode_ = i == 1;
+            uiError_.clear();
+        }
     }
+    const float fx = x + 0.02f, fw = w - 0.04f;
+    uiTextField(fx, y + 0.165f, fw, "Логин", loginName_, false);
+    uiTextField(fx, y + 0.235f, fw, "Пароль", loginPassword_, true);
+    if (!uiError_.empty()) label(uiError_, 0.5f, y + 0.305f, 0.3f, theme::Negative, Align::Center);
+    else if (uiBusy_) label("Подождите...", 0.5f, y + 0.305f, 0.3f, theme::Muted, Align::Center);
+    if (uiButton(fx, y + 0.335f, fw, 0.045f, registerMode_ ? "Создать аккаунт" : "Войти", true, !uiBusy_)) submitLogin();
 }
 
 // ------------------------------------------------------------------ characters
 
 void GameClient::drawCharacters() {
-    const float w = 0.34f, rowH = 0.075f, x = 0.5f - w / 2;
-    const float h = 0.09f + rowH * maxChars_ + 0.01f * maxChars_, y = 0.5f - h / 2;
-    rect(x, y, w, h, kPanel);
-    rect(x, y, w, 0.004f, kAccent);
-    drawTextAligned("Выбор персонажа", 0.5f, y + 0.02f, 0.5f, 4, kText, Align::Center);
-    float ry = y + 0.075f;
-    for (int i = 0; i < maxChars_; ++i, ry += rowH + 0.01f) {
-        const float rx = x + 0.015f, rw = w - 0.03f;
+    // Majestic-style cards in a row at the bottom of the screen.
+    const int n = std::max(1, maxChars_);
+    const float cw = 0.17f, ch = 0.2f, gap = 0.014f, total = n * cw + (n - 1) * gap;
+    const float y = 0.72f;
+    label("ВЫБОР ПЕРСОНАЖА", 0.5f, y - 0.06f, 0.5f, theme::Text, Align::Center);
+    for (int i = 0; i < n; ++i) {
+        const float x = 0.5f - total / 2 + i * (cw + gap);
         if (i < static_cast<int>(chars_.size())) {
             const CharInfo& c = chars_[i];
-            rect(rx, ry, rw, rowH, kPanelLight);
-            drawTextAligned(c.first + " " + c.last, rx + 0.01f, ry + 0.008f, 0.45f, 4, kText, Align::Left);
-            drawTextAligned("Статик: " + std::to_string(c.statik) + "   Наличные: " + money(c.cash) + "   Карта: " + money(c.bank),
-                            rx + 0.01f, ry + 0.042f, 0.3f, 4, kMuted, Align::Left);
-            if (uiButton(rx + rw - 0.075f, ry + 0.018f, 0.065f, 0.04f, "Играть", true, !uiBusy_)) {
+            panel(x, y, cw, ch);
+            pill("#" + std::to_string(c.statik), x + 0.01f, y + 0.012f, 0.026f, 0.28f, theme::AccentSoft, theme::Accent);
+            label(c.female ? "Ж" : "М", x + cw - 0.012f, y + 0.012f, 0.3f, theme::Muted, Align::Right, 0.026f);
+            label(c.first, x + 0.01f, y + 0.045f, 0.5f, theme::Text);
+            label(c.last, x + 0.01f, y + 0.078f, 0.38f, theme::Muted);
+            label("Наличные", x + 0.01f, y + 0.112f, 0.28f, theme::Muted);
+            label(money(c.cash), x + cw - 0.01f, y + 0.112f, 0.28f, theme::Positive, Align::Right);
+            label("Карта", x + 0.01f, y + 0.130f, 0.28f, theme::Muted);
+            label(money(c.bank), x + cw - 0.01f, y + 0.130f, 0.28f, theme::Accent, Align::Right);
+            if (uiButton(x + 0.01f, y + ch - 0.048f, cw - 0.02f, 0.038f, "Играть", true, !uiBusy_)) {
                 uiBusy_ = true;
                 send(ScriptEvent{"gomp:chars:select", {Value::integer(c.id)}});
             }
-        } else if (uiButton(rx, ry, rw, rowH, "+ Создать персонажа", false, !uiBusy_)) {
-            creator_ = Creator{};
-            uiError_.clear();
-            openScreen(Screen::Creator);
+        } else {
+            bool hover = mouseX_ >= x && mouseX_ <= x + cw && mouseY_ >= y && mouseY_ <= y + ch;
+            panel(x, y, cw, ch, hover ? theme::Surface : withAlpha(theme::Bg, 170), hover ? theme::Accent : theme::Border);
+            label("+", x + cw / 2, y + 0.045f, 0.9f, hover ? theme::Accent : theme::Muted, Align::Center);
+            label("Новый персонаж", x + cw / 2, y + 0.125f, 0.36f, theme::Text, Align::Center);
+            if (hover && mouseClick_ && !uiBusy_) {
+                creator_ = Creator{};
+                uiError_.clear();
+                openScreen(Screen::Creator);
+            }
         }
     }
 }
@@ -494,72 +542,92 @@ void GameClient::submitCreator() {
 void GameClient::drawCreator() {
     Creator& c = creator_;
     Ped me = PLAYER::PLAYER_PED_ID();
-    const float x = 0.03f, w = 0.30f, rowH = 0.036f;
-    const float h = 0.94f, y = 0.03f;
-    rect(x, y, w, h, kPanel);
-    rect(x, y, w, 0.004f, kAccent);
-    drawTextAligned("Создание персонажа", x + w / 2, y + 0.012f, 0.5f, 4, kText, Align::Center);
-    const float fx = x + 0.012f, fw = w - 0.024f;
-    float ry = y + 0.055f;
+    const float x = 0.025f, w = 0.27f, rowH = 0.037f;
+    const float y = 0.03f, h = 0.94f;
+    panel(x, y, w, h);
+    label("СОЗДАНИЕ ПЕРСОНАЖА", x + 0.014f, y + 0.014f, 0.46f, theme::Text);
+    const float fx = x + 0.014f, fw = w - 0.028f;
+    float ry = y + 0.06f;
     auto count = [&](int component) { return std::max(1, PED::GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(me, component)); };
-    auto step = [&](const std::string& label, const std::string& value, int& v, int lo, int hi) {
-        if (int d = uiStepper(fx, ry, fw, label, value)) {
+    auto step = [&](const std::string& caption, const std::string& value, int& v, int lo, int hi) {
+        if (int d = uiStepper(fx, ry, fw, caption, value)) {
             v = wrap(v + d, lo, hi);
             c.dirty = true;
         }
         ry += rowH;
     };
-    auto stepF = [&](const std::string& label, float& v) {
+    auto stepF = [&](const std::string& caption, float& v) {
         int pct = static_cast<int>(std::lround(v * 100));
-        if (int d = uiStepper(fx, ry, fw, label, std::to_string(pct) + "%")) {
+        if (int d = uiStepper(fx, ry, fw, caption, std::to_string(pct) + "%")) {
             v = std::clamp(v + d * 0.1f, 0.0f, 1.0f);
             c.dirty = true;
         }
         ry += rowH;
     };
+    auto section = [&](const std::string& s) {
+        ry += 0.006f;
+        sectionTitle(s, fx, ry, fw);
+        ry += 0.028f;
+    };
 
-    if (int d = uiStepper(fx, ry, fw, "Пол", c.female ? "Женский" : "Мужской")) {
-        (void)d;
-        c.female = !c.female;
-        c.dirty = true;
+    section("ЛИЧНОСТЬ");
+    // Gender as a segmented switch.
+    const float segW = fw / 2;
+    roundRect(fx, ry, fw, 0.034f, theme::Surface, 8);
+    for (int i = 0; i < 2; ++i) {
+        bool active = c.female == (i == 1);
+        float bx = fx + i * segW;
+        if (active) roundRect(bx + 0.002f, ry + 0.003f, segW - 0.004f, 0.028f, theme::Accent, 7);
+        label(i ? "Женский" : "Мужской", bx + segW / 2, ry, 0.33f, active ? theme::OnAccent : theme::Muted, Align::Center, 0.034f);
+        if (mouseClick_ && !active && mouseX_ >= bx && mouseX_ <= bx + segW && mouseY_ >= ry && mouseY_ <= ry + 0.034f) {
+            c.female = i == 1;
+            c.dirty = true;
+        }
     }
-    ry += rowH;
+    ry += 0.042f;
     uiTextField(fx, ry, fw / 2 - 0.004f, "Имя", c.first, false);
     uiTextField(fx + fw / 2 + 0.004f, ry, fw / 2 - 0.004f, "Фамилия", c.last, false);
-    ry += 0.072f;
+    ry += 0.07f;
+
+    section("НАСЛЕДСТВЕННОСТЬ");
     step("Отец", std::to_string(c.father + 1), c.father, 0, 20);
     step("Мать", std::to_string(c.mother - 20), c.mother, 21, 41);
     stepF("Сходство с отцом", c.shapeMix);
     stepF("Тон кожи", c.skinMix);
+
+    section("ВНЕШНОСТЬ");
     step("Причёска", std::to_string(c.hair + 1) + " / " + std::to_string(count(2)), c.hair, 0, count(2) - 1);
     step("Цвет волос", std::to_string(c.hairColor + 1), c.hairColor, 0, 63);
     step("Брови", std::to_string(c.brows + 1), c.brows, 0, 33);
     if (!c.female) step("Борода", c.beard < 0 ? "Нет" : std::to_string(c.beard + 1), c.beard, -1, 28);
     step("Цвет глаз", std::to_string(c.eyeColor + 1), c.eyeColor, 0, 31);
+
+    section("ОДЕЖДА И СТАРТ");
     if (int d = uiStepper(fx, ry, fw, "Одежда", outfitName(c.female, c.outfit))) {
         c.outfit = wrap(c.outfit + d, 0, kOutfits - 1);
         c.needDefaults = true;  // re-dress
         c.dirty = true;
     }
     ry += rowH;
-    ry += 0.008f;
     if (int d = uiStepper(fx, ry, fw, "Стартовый набор", kKits[c.kit])) c.kit = wrap(c.kit + d, 0, 2);
     ry += rowH;
-    drawTextAligned(kKitInfo[c.kit], fx, ry - 0.004f, 0.3f, 4, kMuted, Align::Left);
-    ry += 0.034f;
-    if (!uiError_.empty()) drawTextAligned(uiError_, x + w / 2, ry, 0.32f, 4, kError, Align::Center);
-    if (uiBusy_) drawTextAligned("Создание...", x + w / 2, ry, 0.32f, 4, kMuted, Align::Center);
-    ry += 0.034f;
-    if (uiButton(fx, ry, fw, 0.044f, "Создать персонажа", true, !uiBusy_)) submitCreator();
-    ry += 0.052f;
-    if (!chars_.empty() && uiButton(fx, ry, fw, 0.034f, "Назад к персонажам", false, !uiBusy_)) {
+    label(kKitInfo[c.kit], fx, ry, 0.28f, theme::Accent);
+
+    // Bottom: error, create, back.
+    const float by = y + h - 0.105f;
+    if (!uiError_.empty()) label(uiError_, x + w / 2, by - 0.03f, 0.3f, theme::Negative, Align::Center);
+    else if (uiBusy_) label("Создание...", x + w / 2, by - 0.03f, 0.3f, theme::Muted, Align::Center);
+    if (uiButton(fx, by, fw, 0.046f, "Создать персонажа", true, !uiBusy_)) submitCreator();
+    if (!chars_.empty() && uiButton(fx, by + 0.054f, fw, 0.034f, "Назад к персонажам", false, !uiBusy_)) {
         uiError_.clear();
         openScreen(Screen::Characters);
     }
 
     // Turn the character around.
-    if (uiButton(0.60f, 0.90f, 0.05f, 0.04f, "<<")) creatorHeading_ -= 30;
-    if (uiButton(0.66f, 0.90f, 0.05f, 0.04f, ">>")) creatorHeading_ += 30;
+    panel(0.56f, 0.9f, 0.13f, 0.05f, theme::Hud);
+    if (uiButton(0.565f, 0.906f, 0.035f, 0.038f, "<")) creatorHeading_ -= 30;
+    label("Поворот", 0.625f, 0.9f, 0.32f, theme::Muted, Align::Center, 0.05f);
+    if (uiButton(0.65f, 0.906f, 0.035f, 0.038f, ">")) creatorHeading_ += 30;
     ENTITY::SET_ENTITY_HEADING(me, creatorHeading_);
 }
 

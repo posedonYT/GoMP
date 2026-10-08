@@ -19,8 +19,8 @@ void ScriptMain() {
     }
 }
 
-void OnKeyboard(DWORD key, WORD, BYTE, BOOL, BOOL isWithAlt, BOOL, BOOL isUpNow) {
-    if (g_client) g_client->onKey(key, !isUpNow, isWithAlt != FALSE);
+void OnKeyboard(DWORD key, WORD, BYTE, BOOL, BOOL isWithAlt, BOOL wasDownBefore, BOOL isUpNow) {
+    if (g_client) g_client->onKey(key, !isUpNow, isWithAlt != FALSE, !isUpNow && wasDownBefore);
 }
 
 }  // namespace
@@ -29,6 +29,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
     switch (reason) {
         case DLL_PROCESS_ATTACH:
             g_module = module;
+            shv::module = module;
             gompgame::patches::apply();  // must run before the game reaches its front end
             if (!shv::load()) {
                 MessageBoxA(nullptr, "GoMP: ScriptHookV.dll was not found or is incompatible.", "GoMP", MB_ICONERROR);

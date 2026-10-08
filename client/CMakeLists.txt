@@ -46,7 +46,7 @@ if(WIN32)
   target_link_libraries(gomp_core PUBLIC ws2_32 bcrypt)
 endif()
 
-add_executable(gomp-tests tests/test_core.cpp)
+add_executable(gomp-tests tests/test_core.cpp tests/test_game_logic.cpp)
 target_include_directories(gomp-tests PRIVATE third_party/doctest)
 target_compile_definitions(gomp-tests PRIVATE GOMP_REPO_ROOT="${GOMP_REPO_ROOT}")
 target_link_libraries(gomp-tests PRIVATE gomp_core)

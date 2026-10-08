@@ -3,6 +3,7 @@
 namespace shv {
 
 Api api;
+HMODULE module = nullptr;
 
 namespace {
 template <typename F> bool resolve(HMODULE m, const char* mangled, F& out) {
@@ -27,6 +28,8 @@ bool load() {
               resolve(m, "?worldGetAllPeds@@YAHPEAHH@Z", api.worldGetAllPeds) &&
               resolve(m, "?worldGetAllVehicles@@YAHPEAHH@Z", api.worldGetAllVehicles) &&
               resolve(m, "?worldGetAllObjects@@YAHPEAHH@Z", api.worldGetAllObjects);
+    resolve(m, "?createTexture@@YAHPEBD@Z", api.createTexture);
+    resolve(m, "?drawTexture@@YAXHHHHMMMMMMMMMMMM@Z", api.drawTexture);
     return ok;
 }
 

@@ -2,7 +2,7 @@ GO      ?= go
 NODE    ?= node
 BIN     := bin
 
-.PHONY: all build test test-go test-node test-cpp bench fuzz stress stress-quick run golden lint clean
+.PHONY: all build test test-go test-node test-gamemode test-addons test-cpp bench fuzz stress stress-quick run golden lint clean
 
 all: build test
 
@@ -11,7 +11,7 @@ build:
 	$(GO) build -o $(BIN)/gomp-bot ./tools/bot/cmd/gomp-bot
 	$(GO) build -o $(BIN)/gomp-stress ./tools/stress
 
-test: test-go test-node test-cpp
+test: test-go test-node test-gamemode test-cpp
 
 test-go:
 	$(GO) vet -composites=false ./...
@@ -19,6 +19,14 @@ test-go:
 
 test-node:
 	cd runtimes/node && $(NODE) --test "test/*.test.js"
+
+# The freeroam gamemode (accounts, inventory, vehicles, shops, tuning) against a fake mp.
+test-gamemode:
+	cd server-files/packages/freeroam && $(NODE) --test "test/*.test.js"
+
+# The data patches of the add-on installer (needs the .NET SDK).
+test-addons:
+	dotnet run --project tools/addons -c Release -- selftest
 
 test-cpp:
 	$(MAKE) -C client test

@@ -7,6 +7,7 @@
 namespace AUDIO {
 inline BOOL IS_HORN_ACTIVE(Vehicle vehicle) { return invoke<BOOL>(0x9D6BFC12B05C6121ull, vehicle); }
 inline BOOL IS_SCRIPTED_CONVERSATION_ONGOING() { return invoke<BOOL>(0x16754C556D2EDE3Dull); }
+inline void PLAY_SOUND_FRONTEND(int soundId, const char* audioName, const char* audioRef, BOOL p3) { return invoke<void>(0x67C540AA08E4A6F5ull, soundId, audioName, audioRef, p3); }
 inline int STOP_SCRIPTED_CONVERSATION(BOOL p0) { return invoke<int>(0xD79DEEFB53455EBAull, p0); }
 }  // namespace AUDIO
 
@@ -14,17 +15,26 @@ namespace CAMERA {
 inline Cam CREATE_CAM_WITH_PARAMS(const char* camName, float posX, float posY, float posZ, float rotX, float rotY, float rotZ, float fov, BOOL p8, int p9) { return invoke<Cam>(0xB51194800B257161ull, camName, posX, posY, posZ, rotX, rotY, rotZ, fov, p8, p9); }
 inline void DESTROY_CAM(Cam cam, BOOL bScriptHostCam) { return invoke<void>(0x865908C81A2C22E9ull, cam, bScriptHostCam); }
 inline void DO_SCREEN_FADE_IN(int duration) { return invoke<void>(0xD4E8E24955024033ull, duration); }
+inline void DO_SCREEN_FADE_OUT(int duration) { return invoke<void>(0x891B5B39AC6302AFull, duration); }
 inline Vector3 GET_GAMEPLAY_CAM_COORD() { return invoke<Vector3>(0x14D6F5678D8F1B37ull); }
 inline Vector3 GET_GAMEPLAY_CAM_ROT(int rotationOrder) { return invoke<Vector3>(0x837765A25378F0BBull, rotationOrder); }
+inline BOOL IS_CAM_RENDERING(Cam cam) { return invoke<BOOL>(0x02EC0AF5C5A49B7Aull, cam); }
+inline BOOL IS_FIRST_PERSON_AIM_CAM_ACTIVE() { return invoke<BOOL>(0x5E346D934122613Full); }
 inline BOOL IS_SCREEN_FADED_OUT() { return invoke<BOOL>(0xB16FCE9DDC7BA182ull); }
 inline BOOL IS_SCREEN_FADING_OUT() { return invoke<BOOL>(0x797AC7CB535BA28Full); }
 inline void POINT_CAM_AT_COORD(Cam cam, float x, float y, float z) { return invoke<void>(0xF75497BB865F0803ull, cam, x, y, z); }
 inline void RENDER_SCRIPT_CAMS(BOOL render, BOOL ease, int easeTime, BOOL p3, BOOL p4, Any p5) { return invoke<void>(0x07E5B515DB0636FCull, render, ease, easeTime, p3, p4, p5); }
 inline void SET_CAM_ACTIVE(Cam cam, BOOL active) { return invoke<void>(0x026FB97D0A425F84ull, cam, active); }
 inline void SET_CAM_COORD(Cam cam, float posX, float posY, float posZ) { return invoke<void>(0x4D41783FB745E42Eull, cam, posX, posY, posZ); }
+inline void SET_GAMEPLAY_CAM_RELATIVE_HEADING(float heading) { return invoke<void>(0xB4EC2312F4E5B1F1ull, heading); }
 }  // namespace CAMERA
 
 namespace CLOCK {
+inline int GET_CLOCK_DAY_OF_MONTH() { return invoke<int>(0x3D10BC92A4DB1D35ull); }
+inline int GET_CLOCK_DAY_OF_WEEK() { return invoke<int>(0xD972E4BD7AEB235Full); }
+inline int GET_CLOCK_HOURS() { return invoke<int>(0x25223CA6B4D20B7Full); }
+inline int GET_CLOCK_MINUTES() { return invoke<int>(0x13D2B8ADD79640F2ull); }
+inline int GET_CLOCK_MONTH() { return invoke<int>(0xBBC72712E80257A1ull); }
 inline void PAUSE_CLOCK(BOOL toggle) { return invoke<void>(0x4055E40BD2DBEC1Dull, toggle); }
 inline void SET_CLOCK_TIME(int hour, int minute, int second) { return invoke<void>(0x47C3B5848C3E45D8ull, hour, minute, second); }
 }  // namespace CLOCK
@@ -40,13 +50,17 @@ inline void DELETE_ENTITY(Entity* entity) { return invoke<void>(0xAE3CBE5BF394C9
 inline BOOL DOES_ENTITY_EXIST(Entity entity) { return invoke<BOOL>(0x7239B21A38F536BAull, entity); }
 inline void FREEZE_ENTITY_POSITION(Entity entity, BOOL toggle) { return invoke<void>(0x428CA6DBD1094446ull, entity, toggle); }
 inline Vector3 GET_ENTITY_COORDS(Entity entity, BOOL alive) { return invoke<Vector3>(0x3FEF770D40960D5Aull, entity, alive); }
+inline Vector3 GET_ENTITY_FORWARD_VECTOR(Entity entity) { return invoke<Vector3>(0x0A794A5A57F8DF91ull, entity); }
 inline float GET_ENTITY_HEADING(Entity entity) { return invoke<float>(0xE83D4F9BA2A38914ull, entity); }
 inline int GET_ENTITY_HEALTH(Entity entity) { return invoke<int>(0xEEF059FAD016D209ull, entity); }
+inline void GET_ENTITY_MATRIX(Entity entity, Vector3* forwardVector, Vector3* rightVector, Vector3* upVector, Vector3* position) { return invoke<void>(0xECB2FC7235A7D137ull, entity, forwardVector, rightVector, upVector, position); }
 inline Hash GET_ENTITY_MODEL(Entity entity) { return invoke<Hash>(0x9F47B058362C84B5ull, entity); }
 inline void GET_ENTITY_QUATERNION(Entity entity, float* x, float* y, float* z, float* w) { return invoke<void>(0x7B3703D2D32DFA18ull, entity, x, y, z, w); }
+inline Vector3 GET_ENTITY_ROTATION(Entity entity, int rotationOrder) { return invoke<Vector3>(0xAFBD61CC738D9EB9ull, entity, rotationOrder); }
 inline Vector3 GET_ENTITY_ROTATION_VELOCITY(Entity entity) { return invoke<Vector3>(0x213B91045D09B983ull, entity); }
 inline float GET_ENTITY_SPEED(Entity entity) { return invoke<float>(0xD5037BA82E12416Full, entity); }
 inline Vector3 GET_ENTITY_VELOCITY(Entity entity) { return invoke<Vector3>(0x4805D2B1D8CF94A9ull, entity); }
+inline BOOL HAS_COLLISION_LOADED_AROUND_ENTITY(Entity entity) { return invoke<BOOL>(0xE9676F61BC0B3321ull, entity); }
 inline BOOL HAS_ENTITY_BEEN_DAMAGED_BY_ANY_VEHICLE(Entity entity) { return invoke<BOOL>(0xDFD5033FDBA0A9C8ull, entity); }
 inline BOOL HAS_ENTITY_BEEN_DAMAGED_BY_ENTITY(Entity entity1, Entity entity2, BOOL p2) { return invoke<BOOL>(0xC86D67D52A707CF8ull, entity1, entity2, p2); }
 inline BOOL IS_ENTITY_A_PED(Entity entity) { return invoke<BOOL>(0x524AC5ECEA15343Eull, entity); }
@@ -57,6 +71,7 @@ inline void RESET_ENTITY_ALPHA(Entity entity) { return invoke<void>(0x9B1E824FFB
 inline void SET_ENTITY_ALPHA(Entity entity, int alphaLevel, BOOL skin) { return invoke<void>(0x44A0870B7E92D7C0ull, entity, alphaLevel, skin); }
 inline void SET_ENTITY_AS_MISSION_ENTITY(Entity entity, BOOL bScriptHostObject, BOOL bGrabFromOtherScript) { return invoke<void>(0xAD738C3085FE7E11ull, entity, bScriptHostObject, bGrabFromOtherScript); }
 inline void SET_ENTITY_COLLISION(Entity entity, BOOL toggle, BOOL keepPhysics) { return invoke<void>(0x1A9205C1B9EE827Full, entity, toggle, keepPhysics); }
+inline void SET_ENTITY_COORDS(Entity entity, float xPos, float yPos, float zPos, BOOL xAxis, BOOL yAxis, BOOL zAxis, BOOL clearArea) { return invoke<void>(0x06843DA7060A026Bull, entity, xPos, yPos, zPos, xAxis, yAxis, zAxis, clearArea); }
 inline void SET_ENTITY_COORDS_NO_OFFSET(Entity entity, float xPos, float yPos, float zPos, BOOL xAxis, BOOL yAxis, BOOL zAxis) { return invoke<void>(0x239A3351AC1DA385ull, entity, xPos, yPos, zPos, xAxis, yAxis, zAxis); }
 inline void SET_ENTITY_HEADING(Entity entity, float heading) { return invoke<void>(0x8E2530AA8ADA980Eull, entity, heading); }
 inline void SET_ENTITY_HEALTH(Entity entity, int health, Entity instigator, Hash weaponType) { return invoke<void>(0x6B76DC1F3AE6E6A3ull, entity, health, instigator, weaponType); }
@@ -83,8 +98,13 @@ inline void CLEAR_DRAW_ORIGIN() { return invoke<void>(0xFF0B610F6BE0D7AFull); }
 inline void DISABLE_VEHICLE_DISTANTLIGHTS(BOOL toggle) { return invoke<void>(0xC9F98AC1884E73A2ull, toggle); }
 inline void DRAW_MARKER(int type, float posX, float posY, float posZ, float dirX, float dirY, float dirZ, float rotX, float rotY, float rotZ, float scaleX, float scaleY, float scaleZ, int red, int green, int blue, int alpha, BOOL bobUpAndDown, BOOL faceCamera, int rotationOrder, BOOL rotate, const char* textureDict, const char* textureName, BOOL invert) { return invoke<void>(0x28477EC23D892089ull, type, posX, posY, posZ, dirX, dirY, dirZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, red, green, blue, alpha, bobUpAndDown, faceCamera, rotationOrder, rotate, textureDict, textureName, invert); }
 inline void DRAW_RECT(float x, float y, float width, float height, int r, int g, int b, int a, BOOL p8) { return invoke<void>(0x3A618A217E5154F0ull, x, y, width, height, r, g, b, a, p8); }
+inline void DRAW_SPRITE(const char* textureDict, const char* textureName, float screenX, float screenY, float width, float height, float heading, int red, int green, int blue, int alpha, BOOL p11, Any p12) { return invoke<void>(0xE7FFAE5EBF23D890ull, textureDict, textureName, screenX, screenY, width, height, heading, red, green, blue, alpha, p11, p12); }
+inline void GET_ACTUAL_SCREEN_RESOLUTION(int* x, int* y) { return invoke<void>(0x873C9F3104101DD3ull, x, y); }
 inline float GET_ASPECT_RATIO(BOOL b) { return invoke<float>(0xF1307EF624A80D87ull, b); }
 inline float GET_SAFE_ZONE_SIZE() { return invoke<float>(0xBAF107B6BB2C97F0ull); }
+inline Vector3 GET_TEXTURE_RESOLUTION(const char* textureDict, const char* textureName) { return invoke<Vector3>(0x35736EE65BD00C11ull, textureDict, textureName); }
+inline BOOL HAS_STREAMED_TEXTURE_DICT_LOADED(const char* textureDict) { return invoke<BOOL>(0x0145F696AAAAD2E4ull, textureDict); }
+inline void REQUEST_STREAMED_TEXTURE_DICT(const char* textureDict, BOOL p1) { return invoke<void>(0xDFA2EF8E04127DD5ull, textureDict, p1); }
 inline void SET_DRAW_ORIGIN(float x, float y, float z, BOOL p3) { return invoke<void>(0xAA0008F3BBB8F416ull, x, y, z, p3); }
 }  // namespace GRAPHICS
 
@@ -98,12 +118,14 @@ inline Blip ADD_BLIP_FOR_COORD(float x, float y, float z) { return invoke<Blip>(
 inline Blip ADD_BLIP_FOR_ENTITY(Entity entity) { return invoke<Blip>(0x5CDE92C702A8FCE7ull, entity); }
 inline void ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(const char* text) { return invoke<void>(0x6C188BE134E074AAull, text); }
 inline void BEGIN_TEXT_COMMAND_DISPLAY_TEXT(const char* text) { return invoke<void>(0x25FBB336DF1804CBull, text); }
+inline void BEGIN_TEXT_COMMAND_GET_SCREEN_WIDTH_OF_DISPLAY_TEXT(const char* text) { return invoke<void>(0x54CE8AC98E120CABull, text); }
 inline void BEGIN_TEXT_COMMAND_SET_BLIP_NAME(const char* textLabel) { return invoke<void>(0xF9113A30DE5C6670ull, textLabel); }
 inline void BEGIN_TEXT_COMMAND_THEFEED_POST(const char* text) { return invoke<void>(0x202709F4C58A0424ull, text); }
 inline void DISPLAY_HUD(BOOL toggle) { return invoke<void>(0xA6294919E56FF02Aull, toggle); }
 inline void DISPLAY_RADAR(BOOL toggle) { return invoke<void>(0xA0EBB943C300E693ull, toggle); }
 inline BOOL DOES_BLIP_EXIST(Blip blip) { return invoke<BOOL>(0xA6DB27D19ECBB7DAull, blip); }
 inline void END_TEXT_COMMAND_DISPLAY_TEXT(float x, float y, int p2) { return invoke<void>(0xCD015E5BB0D96A57ull, x, y, p2); }
+inline float END_TEXT_COMMAND_GET_SCREEN_WIDTH_OF_DISPLAY_TEXT(BOOL p0) { return invoke<float>(0x85F061DA64ED2F67ull, p0); }
 inline void END_TEXT_COMMAND_SET_BLIP_NAME(Blip blip) { return invoke<void>(0xBC38B49BCB83BC9Bull, blip); }
 inline int END_TEXT_COMMAND_THEFEED_POST_TICKER(BOOL blink, BOOL p1) { return invoke<int>(0x2ED7843F8F801023ull, blink, p1); }
 inline const char* GET_FILENAME_FOR_AUDIO_CONVERSATION(const char* labelName) { return invoke<const char*>(0x7B5280EBA9840C72ull, labelName); }
@@ -114,6 +136,7 @@ inline const char* GET_STREET_NAME_FROM_HASH_KEY(Hash hash) { return invoke<cons
 inline void HIDE_HUD_AND_RADAR_THIS_FRAME() { return invoke<void>(0x719FF505F097FD20ull); }
 inline void HIDE_HUD_COMPONENT_THIS_FRAME(int id) { return invoke<void>(0x6806C51AD12B83B8ull, id); }
 inline BOOL IS_PAUSE_MENU_ACTIVE() { return invoke<BOOL>(0xB0034A223497FFCBull); }
+inline BOOL IS_WAYPOINT_ACTIVE() { return invoke<BOOL>(0x1DD1F58F493F1DA5ull); }
 inline void REMOVE_BLIP(Blip* blip) { return invoke<void>(0x86A652570E5F25DDull, blip); }
 inline void SET_BIGMAP_ACTIVE(BOOL toggleBigMap, BOOL showFullMap) { return invoke<void>(0x231C8F89D0539D8Full, toggleBigMap, showFullMap); }
 inline void SET_BLIP_AS_SHORT_RANGE(Blip blip, BOOL toggle) { return invoke<void>(0xBE8BE4FE60E27B72ull, blip, toggle); }
@@ -126,6 +149,7 @@ inline void SET_BLIP_SCALE(Blip blip, float scale) { return invoke<void>(0xD3874
 inline void SET_BLIP_SPRITE(Blip blip, int spriteId) { return invoke<void>(0xDF735600A4696DAFull, blip, spriteId); }
 inline void SET_MINIMAP_HIDE_FOW(BOOL toggle) { return invoke<void>(0xF8DEE0A5600CBB93ull, toggle); }
 inline void SET_MOUSE_CURSOR_THIS_FRAME() { return invoke<void>(0xAAE7CE1D63167423ull); }
+inline void SET_NEW_WAYPOINT(float x, float y) { return invoke<void>(0xFE43368D2AA4F2FCull, x, y); }
 inline void SET_TEXT_CENTRE(BOOL align) { return invoke<void>(0xC02F4DBFB51D988Bull, align); }
 inline void SET_TEXT_COLOUR(int red, int green, int blue, int alpha) { return invoke<void>(0xBE6B23FFA53FB442ull, red, green, blue, alpha); }
 inline void SET_TEXT_FONT(int fontType) { return invoke<void>(0x66E0276CC5F6B9DAull, fontType); }
@@ -133,13 +157,27 @@ inline void SET_TEXT_JUSTIFICATION(int justifyType) { return invoke<void>(0x4E09
 inline void SET_TEXT_OUTLINE() { return invoke<void>(0x2513DFB0FB8400FEull); }
 inline void SET_TEXT_SCALE(float scale, float size) { return invoke<void>(0x07C837F9A01C34C9ull, scale, size); }
 inline void SET_TEXT_WRAP(float start, float end) { return invoke<void>(0x63145D9C883A1A70ull, start, end); }
+inline void SET_WAYPOINT_OFF() { return invoke<void>(0xA7E4E2D361C2627Full); }
 }  // namespace HUD
+
+namespace INTERIOR {
+inline void CAP_INTERIOR(Interior interior, BOOL toggle) { return invoke<void>(0xD9175F941610DB54ull, interior, toggle); }
+inline void DISABLE_INTERIOR(Interior interior, BOOL toggle) { return invoke<void>(0x6170941419D7D8ECull, interior, toggle); }
+inline Interior GET_INTERIOR_AT_COORDS(float x, float y, float z) { return invoke<Interior>(0xB0F7F8663821D9C3ull, x, y, z); }
+inline BOOL IS_INTERIOR_CAPPED(Interior interior) { return invoke<BOOL>(0x92BAC8ACF88CEC26ull, interior); }
+inline BOOL IS_INTERIOR_DISABLED(Interior interior) { return invoke<BOOL>(0xBC5115A5A939DD15ull, interior); }
+inline BOOL IS_INTERIOR_READY(Interior interior) { return invoke<BOOL>(0x6726BDCCC1932F0Eull, interior); }
+inline void PIN_INTERIOR_IN_MEMORY(Interior interior) { return invoke<void>(0x2CA429C029CCF247ull, interior); }
+inline void UNPIN_INTERIOR(Interior interior) { return invoke<void>(0x261CCE7EED010641ull, interior); }
+}  // namespace INTERIOR
 
 namespace MISC {
 inline void ENABLE_DISPATCH_SERVICE(int dispatchService, BOOL toggle) { return invoke<void>(0xDC0F817884CDD856ull, dispatchService, toggle); }
 inline float GET_FRAME_TIME() { return invoke<float>(0x15C40837039FFAF7ull); }
+inline BOOL GET_GROUND_Z_FOR_3D_COORD(float x, float y, float z, float* groundZ, BOOL ignoreWater, BOOL p5) { return invoke<BOOL>(0xC906A7DAB05C8D2Bull, x, y, z, groundZ, ignoreWater, p5); }
 inline Hash GET_HASH_KEY(const char* string) { return invoke<Hash>(0xD24D37CC275948CCull, string); }
 inline void IGNORE_NEXT_RESTART(BOOL toggle) { return invoke<void>(0x21FFB63D8C615361ull, toggle); }
+inline BOOL IS_POSITION_OCCUPIED(float x, float y, float z, float range, BOOL p4, BOOL checkVehicles, BOOL checkPeds, BOOL p7, BOOL p8, Entity ignoreEntity, BOOL p10) { return invoke<BOOL>(0xADCDE75E1C60F32Dull, x, y, z, range, p4, checkVehicles, checkPeds, p7, p8, ignoreEntity, p10); }
 inline void PAUSE_DEATH_ARREST_RESTART(BOOL toggle) { return invoke<void>(0x2C2B3493FBF51C71ull, toggle); }
 inline void SET_FADE_IN_AFTER_DEATH_ARREST(BOOL toggle) { return invoke<void>(0xDA66D2796BA33F12ull, toggle); }
 inline void SET_FADE_OUT_AFTER_DEATH(BOOL toggle) { return invoke<void>(0x4A18E01DF2C87B86ull, toggle); }
@@ -149,13 +187,20 @@ inline void SET_WEATHER_TYPE_OVERTIME_PERSIST(const char* weatherType, float tim
 inline void SHOOT_SINGLE_BULLET_BETWEEN_COORDS(float x1, float y1, float z1, float x2, float y2, float z2, int damage, BOOL p7, Hash weaponHash, Ped ownerPed, BOOL isAudible, BOOL isInvisible, float speed) { return invoke<void>(0x867654CBC7606F2Cull, x1, y1, z1, x2, y2, z2, damage, p7, weaponHash, ownerPed, isAudible, isInvisible, speed); }
 }  // namespace MISC
 
+namespace NETWORK {
+inline void SET_ENTITY_LOCALLY_INVISIBLE(Entity entity) { return invoke<void>(0xE135A9FF3F5D05D8ull, entity); }
+}  // namespace NETWORK
+
 namespace OBJECT {
 inline Object CREATE_OBJECT_NO_OFFSET(Hash modelHash, float x, float y, float z, BOOL isNetwork, BOOL bScriptHostObj, BOOL dynamic, Any p7) { return invoke<Object>(0x9A294B2138ABB884ull, modelHash, x, y, z, isNetwork, bScriptHostObj, dynamic, p7); }
+inline void DELETE_OBJECT(Object* object) { return invoke<void>(0x539E0AE3E6634B9Full, object); }
+inline BOOL PLACE_OBJECT_ON_GROUND_PROPERLY(Object object) { return invoke<BOOL>(0x58A850EAEE20FAA3ull, object); }
 }  // namespace OBJECT
 
 namespace PAD {
 inline void DISABLE_ALL_CONTROL_ACTIONS(int control) { return invoke<void>(0x5F4B6931816E599Bull, control); }
 inline void DISABLE_CONTROL_ACTION(int control, int action, BOOL disableRelatedActions) { return invoke<void>(0xFE99B66D079CF6BCull, control, action, disableRelatedActions); }
+inline void ENABLE_CONTROL_ACTION(int control, int action, BOOL enableRelatedActions) { return invoke<void>(0x351220255D64C155ull, control, action, enableRelatedActions); }
 inline float GET_CONTROL_NORMAL(int control, int action) { return invoke<float>(0xEC3C9B8D5327B563ull, control, action); }
 inline float GET_DISABLED_CONTROL_NORMAL(int control, int action) { return invoke<float>(0x11E65974A982637Cull, control, action); }
 inline BOOL IS_DISABLED_CONTROL_JUST_PRESSED(int control, int action) { return invoke<BOOL>(0x91AEF906BCA88877ull, control, action); }
@@ -163,6 +208,7 @@ inline BOOL IS_DISABLED_CONTROL_PRESSED(int control, int action) { return invoke
 }  // namespace PAD
 
 namespace PATH {
+inline BOOL GET_NTH_CLOSEST_VEHICLE_NODE_WITH_HEADING(float x, float y, float z, int nthClosest, Vector3* outPosition, float* outHeading, int* outNumLanes, int nodeFlags, float unknown3, float unknown4) { return invoke<BOOL>(0x80CA6A8B6C094CC4ull, x, y, z, nthClosest, outPosition, outHeading, outNumLanes, nodeFlags, unknown3, unknown4); }
 inline void GET_STREET_NAME_AT_COORD(float x, float y, float z, Hash* streetName, Hash* crossingRoad) { return invoke<void>(0x2EB41072B4C1E4C0ull, x, y, z, streetName, crossingRoad); }
 }  // namespace PATH
 
@@ -180,6 +226,7 @@ inline int GET_PED_DRAWABLE_VARIATION(Ped ped, int componentId) { return invoke<
 inline BOOL GET_PED_LAST_DAMAGE_BONE(Ped ped, int* outBone) { return invoke<BOOL>(0xD75960F6BD9EA49Cull, ped, outBone); }
 inline int GET_PED_MAX_HEALTH(Ped ped) { return invoke<int>(0x4700A416E8324EF3ull, ped); }
 inline Vehicle GET_VEHICLE_PED_IS_IN(Ped ped, BOOL includeEntering) { return invoke<Vehicle>(0x9A9112A0FE9A4713ull, ped, includeEntering); }
+inline Vehicle GET_VEHICLE_PED_IS_USING(Ped ped) { return invoke<Vehicle>(0x6094AD011A2EA87Dull, ped); }
 inline BOOL IS_PED_A_PLAYER(Ped ped) { return invoke<BOOL>(0x12534C348C6CB68Bull, ped); }
 inline BOOL IS_PED_CLIMBING(Ped ped) { return invoke<BOOL>(0x53E8CB4F48BFE623ull, ped); }
 inline BOOL IS_PED_DUCKING(Ped ped) { return invoke<BOOL>(0xD125AE748725C6BCull, ped); }
@@ -210,6 +257,7 @@ inline void SET_PED_CAN_RAGDOLL(Ped ped, BOOL toggle) { return invoke<void>(0xB1
 inline void SET_PED_CAN_RAGDOLL_FROM_PLAYER_IMPACT(Ped ped, BOOL toggle) { return invoke<void>(0xDF993EE5E90ABA25ull, ped, toggle); }
 inline void SET_PED_COMBAT_ATTRIBUTES(Ped ped, int attributeId, BOOL enabled) { return invoke<void>(0x9F7794730795E019ull, ped, attributeId, enabled); }
 inline void SET_PED_COMPONENT_VARIATION(Ped ped, int componentId, int drawableId, int textureId, int paletteId) { return invoke<void>(0x262B14F48D29DE80ull, ped, componentId, drawableId, textureId, paletteId); }
+inline void SET_PED_CONFIG_FLAG(Ped ped, int flagId, BOOL value) { return invoke<void>(0x1913FE4CBF41C463ull, ped, flagId, value); }
 inline void SET_PED_DEFAULT_COMPONENT_VARIATION(Ped ped) { return invoke<void>(0x45EEE61580806D63ull, ped); }
 inline void SET_PED_DENSITY_MULTIPLIER_THIS_FRAME(float multiplier) { return invoke<void>(0x95E3D6257B166CF2ull, multiplier); }
 inline void SET_PED_DIES_WHEN_INJURED(Ped ped, BOOL toggle) { return invoke<void>(0x5BA7919BED300023ull, ped, toggle); }
@@ -287,6 +335,7 @@ inline void TASK_JUMP(Ped ped, BOOL usePlayerLaunchForce, BOOL doSuperJump, BOOL
 inline void TASK_LEAVE_VEHICLE(Ped ped, Vehicle vehicle, int flags) { return invoke<void>(0xD3DBCE61A490BE02ull, ped, vehicle, flags); }
 inline void TASK_PLAY_ANIM(Ped ped, const char* animDictionary, const char* animationName, float blendInSpeed, float blendOutSpeed, int duration, int flag, float playbackRate, BOOL lockX, BOOL lockY, BOOL lockZ) { return invoke<void>(0xEA47FE3719165B94ull, ped, animDictionary, animationName, blendInSpeed, blendOutSpeed, duration, flag, playbackRate, lockX, lockY, lockZ); }
 inline void TASK_START_SCENARIO_IN_PLACE(Ped ped, const char* scenarioName, int unkDelay, BOOL playEnterAnim) { return invoke<void>(0x142A02425FF02BD9ull, ped, scenarioName, unkDelay, playEnterAnim); }
+inline void TASK_USE_MOBILE_PHONE(Ped ped, BOOL usePhone, int desiredPhoneMode) { return invoke<void>(0xBD2A8EC3AF4DE7DBull, ped, usePhone, desiredPhoneMode); }
 }  // namespace TASK
 
 namespace VEHICLE {
@@ -295,13 +344,32 @@ inline void CLEAR_VEHICLE_CUSTOM_SECONDARY_COLOUR(Vehicle vehicle) { return invo
 inline Vehicle CREATE_VEHICLE(Hash modelHash, float x, float y, float z, float heading, BOOL isNetwork, BOOL bScriptHostVeh, BOOL p7) { return invoke<Vehicle>(0xAF35D0D2583051B0ull, modelHash, x, y, z, heading, isNetwork, bScriptHostVeh, p7); }
 inline void DELETE_ALL_TRAINS() { return invoke<void>(0x736A718577F39C7Dull); }
 inline void EXPLODE_VEHICLE(Vehicle vehicle, BOOL isAudible, BOOL isInvisible) { return invoke<void>(0xBA71116ADF5B514Cull, vehicle, isAudible, isInvisible); }
+inline const char* GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(Hash modelHash) { return invoke<const char*>(0xB215AAC32D25D019ull, modelHash); }
 inline BOOL GET_IS_VEHICLE_ENGINE_RUNNING(Vehicle vehicle) { return invoke<BOOL>(0xAE31E7DF9B5B132Eull, vehicle); }
+inline const char* GET_MOD_SLOT_NAME(Vehicle vehicle, int modType) { return invoke<const char*>(0x51F0FEB9F6AE98C0ull, vehicle, modType); }
+inline const char* GET_MOD_TEXT_LABEL(Vehicle vehicle, int modType, int modValue) { return invoke<const char*>(0x8935624F8C5592CCull, vehicle, modType, modValue); }
+inline int GET_NUM_VEHICLE_MODS(Vehicle vehicle, int modType) { return invoke<int>(0xE38E9162A2500646ull, vehicle, modType); }
 inline Ped GET_PED_IN_VEHICLE_SEAT(Vehicle vehicle, int seatIndex, BOOL p2) { return invoke<Ped>(0xBB40DD2270B65366ull, vehicle, seatIndex, p2); }
 inline float GET_VEHICLE_BODY_HEALTH(Vehicle vehicle) { return invoke<float>(0xF271147EB7B40F12ull, vehicle); }
+inline int GET_VEHICLE_CLASS(Vehicle vehicle) { return invoke<int>(0x29439776AAA00A62ull, vehicle); }
+inline void GET_VEHICLE_COLOURS(Vehicle vehicle, int* colorPrimary, int* colorSecondary) { return invoke<void>(0xA19435F193E081ACull, vehicle, colorPrimary, colorSecondary); }
+inline int GET_VEHICLE_DOOR_LOCK_STATUS(Vehicle vehicle) { return invoke<int>(0x25BC98A59C2EA962ull, vehicle); }
 inline float GET_VEHICLE_ENGINE_HEALTH(Vehicle vehicle) { return invoke<float>(0xC45D23BAF168AAB8ull, vehicle); }
+inline float GET_VEHICLE_ESTIMATED_MAX_SPEED(Vehicle vehicle) { return invoke<float>(0x53AF99BAA671CA47ull, vehicle); }
 inline void GET_VEHICLE_EXTRA_COLOURS(Vehicle vehicle, int* pearlescentColor, int* wheelColor) { return invoke<void>(0x3BC4245933A166F7ull, vehicle, pearlescentColor, wheelColor); }
 inline BOOL GET_VEHICLE_LIGHTS_STATE(Vehicle vehicle, BOOL* lightsOn, BOOL* highbeamsOn) { return invoke<BOOL>(0xB91B4C20085BD12Full, vehicle, lightsOn, highbeamsOn); }
+inline int GET_VEHICLE_LIVERY(Vehicle vehicle) { return invoke<int>(0x2BB9230590DA5E8Aull, vehicle); }
+inline int GET_VEHICLE_LIVERY_COUNT(Vehicle vehicle) { return invoke<int>(0x87B63E25A529D526ull, vehicle); }
+inline int GET_VEHICLE_MOD(Vehicle vehicle, int modType) { return invoke<int>(0x772960298DA26FDBull, vehicle, modType); }
+inline void GET_VEHICLE_NEON_COLOUR(Vehicle vehicle, int* r, int* g, int* b) { return invoke<void>(0x7619EEE8C886757Full, vehicle, r, g, b); }
+inline BOOL GET_VEHICLE_NEON_ENABLED(Vehicle vehicle, int index) { return invoke<BOOL>(0x8C4B92553E4766A5ull, vehicle, index); }
+inline const char* GET_VEHICLE_NUMBER_PLATE_TEXT(Vehicle vehicle) { return invoke<const char*>(0x7CE1CCB9B293020Eull, vehicle); }
+inline int GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(Vehicle vehicle) { return invoke<int>(0xF11BC2DD9A3E7195ull, vehicle); }
+inline int GET_VEHICLE_WHEEL_TYPE(Vehicle vehicle) { return invoke<int>(0xB3ED1BFB4BE636DCull, vehicle); }
+inline int GET_VEHICLE_WINDOW_TINT(Vehicle vehicle) { return invoke<int>(0x0EE21293DAD47C95ull, vehicle); }
+inline BOOL IS_TOGGLE_MOD_ON(Vehicle vehicle, int modType) { return invoke<BOOL>(0x84B233A8C8FC8AE7ull, vehicle, modType); }
 inline BOOL IS_VEHICLE_SIREN_ON(Vehicle vehicle) { return invoke<BOOL>(0x4C9BF537BE2634B2ull, vehicle); }
+inline void REMOVE_VEHICLE_MOD(Vehicle vehicle, int modType) { return invoke<void>(0x92D619E420858204ull, vehicle, modType); }
 inline void SET_ALL_LOW_PRIORITY_VEHICLE_GENERATORS_ACTIVE(BOOL active) { return invoke<void>(0x608207E7A8FB787Cull, active); }
 inline void SET_ALL_VEHICLE_GENERATORS_ACTIVE_IN_AREA(float x1, float y1, float z1, float x2, float y2, float z2, BOOL toggle, BOOL p7) { return invoke<void>(0xC12321827687FE4Dull, x1, y1, z1, x2, y2, z2, toggle, p7); }
 inline void SET_DISTANT_CARS_ENABLED(BOOL toggle) { return invoke<void>(0xF796359A959DF65Dull, toggle); }
@@ -316,16 +384,21 @@ inline void SET_VEHICLE_BODY_HEALTH(Vehicle vehicle, float value) { return invok
 inline void SET_VEHICLE_COLOURS(Vehicle vehicle, int colorPrimary, int colorSecondary) { return invoke<void>(0x4F1D4BE3A7F24601ull, vehicle, colorPrimary, colorSecondary); }
 inline void SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(Vehicle vehicle, int r, int g, int b) { return invoke<void>(0x7141766F91D15BEAull, vehicle, r, g, b); }
 inline void SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(Vehicle vehicle, int r, int g, int b) { return invoke<void>(0x36CED73BFED89754ull, vehicle, r, g, b); }
+inline void SET_VEHICLE_DEFORMATION_FIXED(Vehicle vehicle) { return invoke<void>(0x953DA1E1B12C0491ull, vehicle); }
 inline void SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME(float multiplier) { return invoke<void>(0x245A6883D966D537ull, multiplier); }
 inline void SET_VEHICLE_DOORS_LOCKED(Vehicle vehicle, int doorLockStatus) { return invoke<void>(0xB664292EAECF7FA6ull, vehicle, doorLockStatus); }
+inline void SET_VEHICLE_DOOR_OPEN(Vehicle vehicle, int doorId, BOOL loose, BOOL openInstantly) { return invoke<void>(0x7C65DAC73C35C862ull, vehicle, doorId, loose, openInstantly); }
+inline void SET_VEHICLE_DOOR_SHUT(Vehicle vehicle, int doorId, BOOL closeInstantly) { return invoke<void>(0x93D9BD300D7789E5ull, vehicle, doorId, closeInstantly); }
 inline void SET_VEHICLE_ENGINE_HEALTH(Vehicle vehicle, float health) { return invoke<void>(0x45F6D8EEF34ABEF1ull, vehicle, health); }
 inline void SET_VEHICLE_ENGINE_ON(Vehicle vehicle, BOOL value, BOOL instantly, BOOL disableAutoStart) { return invoke<void>(0x2497C4717C8B881Eull, vehicle, value, instantly, disableAutoStart); }
 inline void SET_VEHICLE_EXTRA(Vehicle vehicle, int extraId, BOOL disable) { return invoke<void>(0x7EE3A3C5E4A40CC9ull, vehicle, extraId, disable); }
 inline void SET_VEHICLE_EXTRA_COLOURS(Vehicle vehicle, int pearlescentColor, int wheelColor) { return invoke<void>(0x2036F561ADD12E33ull, vehicle, pearlescentColor, wheelColor); }
 inline void SET_VEHICLE_EXTRA_COLOUR_5(Vehicle vehicle, int color) { return invoke<void>(0xF40DD601A65F7F19ull, vehicle, color); }
 inline void SET_VEHICLE_EXTRA_COLOUR_6(Vehicle vehicle, int color) { return invoke<void>(0x6089CDF6A57F326Cull, vehicle, color); }
+inline void SET_VEHICLE_FIXED(Vehicle vehicle) { return invoke<void>(0x115722B1B9C14C1Cull, vehicle); }
 inline void SET_VEHICLE_FULLBEAM(Vehicle vehicle, BOOL toggle) { return invoke<void>(0x8B7FD87F0DDB421Eull, vehicle, toggle); }
 inline void SET_VEHICLE_HAS_BEEN_OWNED_BY_PLAYER(Vehicle vehicle, BOOL owned) { return invoke<void>(0x2B5F9D2AF1F1722Dull, vehicle, owned); }
+inline void SET_VEHICLE_INDICATOR_LIGHTS(Vehicle vehicle, int turnSignal, BOOL toggle) { return invoke<void>(0xB5D45264751B7DF0ull, vehicle, turnSignal, toggle); }
 inline void SET_VEHICLE_IS_STOLEN(Vehicle vehicle, BOOL isStolen) { return invoke<void>(0x67B2C79AA7FF5738ull, vehicle, isStolen); }
 inline void SET_VEHICLE_LIGHTS(Vehicle vehicle, int state) { return invoke<void>(0x34E710FF01247C5Aull, vehicle, state); }
 inline void SET_VEHICLE_LIVERY(Vehicle vehicle, int livery) { return invoke<void>(0x60BF608F1B8CD1B6ull, vehicle, livery); }
@@ -348,9 +421,15 @@ inline void TOGGLE_VEHICLE_MOD(Vehicle vehicle, int modType, BOOL toggle) { retu
 }  // namespace VEHICLE
 
 namespace WEAPON {
+inline BOOL GET_AMMO_IN_CLIP(Ped ped, Hash weaponHash, int* ammo) { return invoke<BOOL>(0x2E1202248937775Cull, ped, weaponHash, ammo); }
+inline int GET_AMMO_IN_PED_WEAPON(Ped ped, Hash weaponhash) { return invoke<int>(0x015A522136D7F951ull, ped, weaponhash); }
 inline BOOL GET_CURRENT_PED_WEAPON(Ped ped, Hash* weaponHash, BOOL doDeadCheck) { return invoke<BOOL>(0x3A87E44BB9A01D54ull, ped, weaponHash, doDeadCheck); }
+inline int GET_MAX_AMMO_IN_CLIP(Ped ped, Hash weaponHash, BOOL p2) { return invoke<int>(0xA38DCFFCEA8962FAull, ped, weaponHash, p2); }
 inline BOOL GET_PED_LAST_WEAPON_IMPACT_COORD(Ped ped, Vector3* coords) { return invoke<BOOL>(0x6C4D0409BA1A2BC2ull, ped, coords); }
+inline Hash GET_SELECTED_PED_WEAPON(Ped ped) { return invoke<Hash>(0x0A6DB4965674D243ull, ped); }
+inline Hash GET_WEAPONTYPE_GROUP(Hash weaponHash) { return invoke<Hash>(0xC3287EE3050FB74Cull, weaponHash); }
 inline void GIVE_WEAPON_TO_PED(Ped ped, Hash weaponHash, int ammoCount, BOOL isHidden, BOOL bForceInHand) { return invoke<void>(0xBF0FD6E56C964FCBull, ped, weaponHash, ammoCount, isHidden, bForceInHand); }
+inline BOOL IS_PED_ARMED(Ped ped, int typeFlags) { return invoke<BOOL>(0x475768A975D5AD17ull, ped, typeFlags); }
 inline void REMOVE_ALL_PED_WEAPONS(Ped ped, BOOL p1) { return invoke<void>(0xF25DF915FA38C5F3ull, ped, p1); }
 inline void SET_CURRENT_PED_WEAPON(Ped ped, Hash weaponHash, BOOL bForceInHand) { return invoke<void>(0xADF692B254977C0Cull, ped, weaponHash, bForceInHand); }
 inline void SET_PED_AMMO(Ped ped, Hash weaponHash, int ammo, BOOL p3) { return invoke<void>(0x14E56BC5B5DB6A19ull, ped, weaponHash, ammo, p3); }

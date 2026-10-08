@@ -30,14 +30,21 @@ import (
 const manifestName = "gomp-session.json"
 
 // Files the launcher puts into the game folder (from the dist folder).
-var sessionFiles = []string{"ScriptHookV.dll", "dinput8.dll", "xinput1_4.dll", "args.txt", "gomp.asi"}
+var sessionFiles = []string{"ScriptHookV.dll", "dinput8.dll", "xinput1_4.dll", "args.txt", "gomp.asi", "RageOpenV.asi"}
+
+// Optional session files: the session works without them.
+var optionalFiles = map[string]bool{"xinput1_4.dll": true, "RageOpenV.asi": true}
+
+// Folders the launcher puts into the game folder (icons and other client data).
+var sessionDirs = []string{"gomp"}
 
 // Files created by the session itself (logs, config) that are removed afterwards.
-var generatedFiles = []string{"gomp.json", "gomp.log", "ScriptHookV.log", "asiloader.log"}
+var generatedFiles = []string{"gomp.json", "gomp.log", "gomp-boot.log", "ScriptHookV.log", "asiloader.log", "RageOpenV.ini", "RageOpenV.log"}
 
 type installed struct {
 	Name   string `json:"name"`
 	Backup string `json:"backup,omitempty"` // original file renamed aside
+	Dir    bool   `json:"dir,omitempty"`
 }
 
 type manifest struct {
@@ -78,6 +85,7 @@ func run(gameDir, server, name, dist string, cleanOnly bool) error {
 	if dist == "" {
 		dist = findDist()
 	}
+	installAddons(game.dir, dist)
 	if err := install(game.dir, dist, server, name); err != nil {
 		_ = cleanup(game.dir)
 		return err
@@ -114,12 +122,28 @@ func install(gameDir, dist, server, name string) error {
 	if err := save(); err != nil {
 		return err
 	}
+	// Logs and configs of the user's own ScriptHookV/RageOpenV setup are set aside
+	// so the session's ones can be removed afterwards.
+	for _, f := range generatedFiles {
+		dst := filepath.Join(gameDir, f)
+		if _, err := os.Stat(dst); err != nil {
+			continue
+		}
+		entry := installed{Name: f, Backup: f + ".gomp-backup"}
+		if err := os.Rename(dst, filepath.Join(gameDir, entry.Backup)); err != nil {
+			return err
+		}
+		m.Files = append(m.Files, entry)
+		if err := save(); err != nil {
+			return err
+		}
+	}
 	for _, f := range sessionFiles {
 		src := filepath.Join(dist, f)
 		data, err := os.ReadFile(src)
 		if err != nil {
-			if f == "xinput1_4.dll" {
-				continue // optional part of the ScriptHookV distribution
+			if optionalFiles[f] {
+				continue
 			}
 			return fmt.Errorf("%s: %w (see client-dist/README.md)", src, err)
 		}
@@ -143,7 +167,32 @@ func install(gameDir, dist, server, name string) error {
 			return err
 		}
 	}
+	for _, d := range sessionDirs {
+		src := filepath.Join(dist, d)
+		if st, err := os.Stat(src); err != nil || !st.IsDir() {
+			continue
+		}
+		dst := filepath.Join(gameDir, d)
+		entry := installed{Name: d, Dir: true}
+		if _, err := os.Stat(dst); err == nil {
+			entry.Backup = d + ".gomp-backup"
+			if err := os.Rename(dst, filepath.Join(gameDir, entry.Backup)); err != nil {
+				return err
+			}
+		}
+		m.Files = append(m.Files, entry)
+		if err := save(); err != nil {
+			return err
+		}
+		if err := os.CopyFS(dst, os.DirFS(src)); err != nil {
+			return err
+		}
+	}
 	cfg := map[string]any{"server": server, "name": name, "interpolationDelayMs": 100}
+	// GOMP_PROBE=houses makes the client check the house interiors and doors (tools/addons/testpack.sh).
+	if probe := os.Getenv("GOMP_PROBE"); probe != "" {
+		cfg["probe"] = probe
+	}
 	return writeJSON(filepath.Join(gameDir, "gomp.json"), cfg)
 }
 
@@ -161,33 +210,86 @@ func cleanup(gameDir string) error {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 	keepLog(gameDir)
+	restored := map[string]bool{}
 	for _, f := range m.Files {
 		dst := filepath.Join(gameDir, f.Name)
-		if err := removeRetry(dst); err != nil {
+		remove := removeRetry
+		if f.Dir {
+			remove = removeAllRetry
+		}
+		if err := remove(dst); err != nil {
 			return err
 		}
 		if f.Backup != "" {
 			if err := os.Rename(filepath.Join(gameDir, f.Backup), dst); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
+			restored[f.Name] = true
 		}
 	}
 	for _, f := range generatedFiles {
-		_ = removeRetry(filepath.Join(gameDir, f))
+		if !restored[f] {
+			_ = removeRetry(filepath.Join(gameDir, f))
+		}
 	}
 	return os.Remove(path)
 }
 
-// keepLog copies the client log next to the launcher before the session files are removed.
-func keepLog(gameDir string) {
-	data, err := os.ReadFile(filepath.Join(gameDir, "gomp.log"))
-	if err != nil {
+// installAddons keeps the add-on vehicle packs of dist/addons in the game's mods
+// folder (tools/addons). The mods folder is only read while RageOpenV.asi is in
+// the game folder, i.e. during GoMP sessions.
+func installAddons(gameDir, dist string) {
+	packs := filepath.Join(dist, "addons")
+	if st, err := os.Stat(packs); err != nil || !st.IsDir() {
 		return
 	}
 	exe, _ := os.Executable()
+	tool := filepath.Join(filepath.Dir(exe), "addons", "gomp-addons.exe")
+	if _, err := os.Stat(tool); err != nil {
+		fmt.Println("add-on vehicles skipped:", tool, "not found (build tools/addons)")
+		return
+	}
+	cmd := exec.Command(tool, "install", "--game", gameDir, "--packs", packs)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Println("add-on vehicles not installed:", err)
+	}
+}
+
+// keepLog copies the session logs next to the launcher before the session files
+// are removed: the client log and, for crashes before the client starts, the
+// logs of ScriptHookV, the ASI loader and RageOpenV.
+func keepLog(gameDir string) {
+	exe, _ := os.Executable()
 	dir := filepath.Join(filepath.Dir(exe), "logs")
-	_ = os.MkdirAll(dir, 0o755)
-	_ = os.WriteFile(filepath.Join(dir, "gomp-client-"+time.Now().Format("20060102-150405")+".log"), data, 0o644)
+	stamp := time.Now().Format("20060102-150405")
+	logs := map[string]string{
+		"gomp.log":        "gomp-client-" + stamp + ".log",
+		"gomp-boot.log":   "gomp-boot-" + stamp + ".log",
+		"ScriptHookV.log": "scripthookv-" + stamp + ".log",
+		"asiloader.log":   "asiloader-" + stamp + ".log",
+		"RageOpenV.log":   "rageopenv-" + stamp + ".log",
+	}
+	for src, dst := range logs {
+		data, err := os.ReadFile(filepath.Join(gameDir, src))
+		if err != nil {
+			continue
+		}
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, dst), data, 0o644)
+	}
+}
+
+// removeAllRetry deletes a folder, waiting while the exiting game still holds its files.
+func removeAllRetry(path string) error {
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		err := os.RemoveAll(path)
+		if err == nil || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 // removeRetry deletes a file, waiting while the exiting game still holds it.

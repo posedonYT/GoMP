@@ -7,4 +7,12 @@ logs/
 server-files/packages/*/admin.json
 /client-dist/*
 !/client-dist/README.md
+!/client-dist/gomp/
 /server-files/data/
+/tools/addons/bin/
+/tools/addons/obj/
+/tools/gta/bin/
+/tools/gta/obj/
+/tools/studio/*/bin/
+/tools/studio/*/obj/
+/tools/studio/web/node_modules/

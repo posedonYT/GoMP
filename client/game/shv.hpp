@@ -69,9 +69,15 @@ struct Api {
     int (*worldGetAllPeds)(int* arr, int size) = nullptr;
     int (*worldGetAllVehicles)(int* arr, int size) = nullptr;
     int (*worldGetAllObjects)(int* arr, int size) = nullptr;
+    // Optional: PNG/DDS textures drawn over the game (item icons).
+    int (*createTexture)(const char* fileName) = nullptr;
+    void (*drawTexture)(int id, int index, int level, int time, float sizeX, float sizeY, float centerX, float centerY,
+                        float posX, float posY, float rotation, float screenHeightScaleFactor, float r, float g, float b,
+                        float a) = nullptr;
 };
 
 extern Api api;
+extern HMODULE module;  // gomp.asi itself (to find files next to it)
 
 // Loads ScriptHookV.dll and resolves the exports; false if anything is missing.
 bool load();

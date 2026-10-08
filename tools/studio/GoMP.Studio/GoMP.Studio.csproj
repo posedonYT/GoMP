@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- GoMP Studio: the local web server of the map and vehicle editor (tools/studio/README.md). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>gomp-studio</AssemblyName>
+    <RootNamespace>GoMP.Studio</RootNamespace>
+    <!-- The pages come from tools/studio/web (below), not from the static web assets pipeline. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../GoMP.Studio.Core/GoMP.Studio.Core.csproj" />
+  </ItemGroup>
+  <!-- The browser part (tools/studio/web) is served as wwwroot. -->
+  <ItemGroup>
+    <Content Include="../web/**" Exclude="../web/test/**;../web/node_modules/**" LinkBase="wwwroot" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -6,6 +6,8 @@
 #include <chrono>
 #include <cstdio>
 #include <deque>
+#include <functional>
+#include <array>
 #include <map>
 #include <set>
 #include <memory>
@@ -14,6 +16,7 @@
 #include <vector>
 
 #include "gomp/messages.hpp"
+#include "logic.hpp"
 #include "gomp/transport.hpp"
 #include "shv.hpp"
 #include "ui.hpp"
@@ -28,6 +31,7 @@ struct Config {
     std::string name = "Player";
     std::string serial;
     int interpolationDelayMs = 100;
+    std::string probe;  // diagnostics: "houses" checks the house interiors and doors (probe.cpp)
 };
 Config loadConfig(const std::string& path);
 
@@ -82,6 +86,7 @@ struct RemoteVehicle {
     float steer = 0;
     float bodyHealth = 1000, engineHealth = 1000;
     uint16_t appliedFlags = 0xFFFF;  // flags already applied to the handle
+    int appliedDoors = -1;           // open-door mask (shared "doors") applied to the handle
 };
 
 // Static world entities (objects, peds, blips, markers, checkpoints, labels).
@@ -93,6 +98,7 @@ struct WorldEntity {
     gomp::Props props;
     gomp::KV shared;
     int handle = 0;  // game handle for objects, peds and blips
+    bool placed = false;  // a dropped item laid on the ground
 };
 
 class GameClient {
@@ -100,7 +106,7 @@ public:
     explicit GameClient(Config cfg);
     ~GameClient();
     void tick();                                  // once per frame
-    void onKey(DWORD key, bool down, bool alt);   // keyboard handler (any thread)
+    void onKey(DWORD key, bool down, bool alt, bool repeat = false);  // keyboard handler (any thread)
 
 private:
     using Clock = std::chrono::steady_clock;
@@ -168,7 +174,7 @@ private:
     bool uiBlocksPause();
 
     // login, character selection, character creator and the HUD (screens.cpp)
-    enum class Screen { None, Login, Characters, Creator, Menu, Layout };
+    enum class Screen { None, Login, Characters, Creator, Menu, Layout, Inventory, VehMenu, Shop, Fuel, Tuning, House, Phone };
     bool lobbyScreen() const { return screen_ == Screen::Login || screen_ == Screen::Characters || screen_ == Screen::Creator; }
     struct CharInfo {
         int id = 0, statik = 0;
@@ -206,26 +212,208 @@ private:
     void drawHud();
 
     // HUD layout, settings, F2 menu, layout editor and the movable minimap (hud.cpp)
+public:  // plain data, also used by the settings table in hud.cpp
     struct Settings {
         float mapDX = 0, mapDY = 0;          // minimap offset from its default place (screen units)
         bool infoAttached = true;            // the money/location block sticks to the minimap
         float infoX = 0, infoY = 0;          // its top-left corner when detached
         float topX = 0.985f, topY = 0.012f;  // online/name block (top-right anchor)
+        float hotbarX = 0.5f, hotbarY = 0.985f;  // hotbar strip (bottom-centre anchor)
+        bool hotbarVertical = false;
+        float ammoX = 0.985f, ammoY = 0.80f;     // ammo block (top-right anchor)
+        float speedoX = 0.985f, speedoY = 0.97f; // speedometer (bottom-right anchor)
         bool nametags = true, hud = true, perf = false;
+        // crosshair (F2 → «Прицел»)
+        bool crossOn = true, crossOutline = true, crossDot = false, crossDynamic = true;
+        int crossStyle = 0, crossColor = 0, crossAlpha = 100;  // alpha in %
+        int crossLen = 7, crossThick = 2, crossGap = 4;        // pixels at 1080p
+        // phone (phone.cpp)
+        int phoneWallpaper = 0;
+        bool phoneSound = true;
     };
     struct Rect {
         float x = 0, y = 0, w = 0, h = 0;
         bool contains(float px, float py) const { return px >= x && px <= x + w && py >= y && py <= y + h; }
     };
+
+private:
     void loadSettings();
     void saveSettings();
     Rect minimapRect() const;
     Rect infoRect() const;
     Rect topRect() const;
+    Rect hotbarRect() const;
+    Rect ammoRect() const;
+    Rect speedoRect() const;
+    void drawCrosshair(bool preview, float cx, float cy);
+    void drawAmmo();
+    void drawSpeedometer();
+    DWORD crossActiveAt_ = 0, lastShotSeenAt_ = 0;  // crosshair visibility and dynamic spread
+    float speedoAlpha_ = 0;                          // speedometer fade (from YASM)
     void startMinimapSearch();
     void applyMinimapPosition();
     void tickMinimap();
     void drawMenu();
+
+    // vehicles: fuel, engine, seat belt, locks, doors and the G menu (vehicle_ui.cpp)
+    struct RadialItem {
+        std::string title, sub;
+        bool enabled = true;
+        std::function<void()> action;
+    };
+    void tickVehicles();
+    bool handleVehicleEvent(const gomp::ScriptEvent& e);
+    RemoteVehicle* myRemoteVehicle();
+    uint16_t nearestVehicle(float range) const;
+    float vehicleFuel(const RemoteVehicle& v, float* tank = nullptr) const;
+    std::string vehicleName(Vehicle veh) const;
+    void openVehicleMenu();
+    void drawVehicleMenu();
+    void toggleEngine(Vehicle veh);
+    void setBelt(bool on);
+    int itemCount(const std::string& key) const;
+
+    // gas stations, 24/7 shops and items on the ground (places.cpp)
+    enum class PlaceKind { Fuel, Shop, Tune };
+    struct Place {
+        PlaceKind kind = PlaceKind::Shop;
+        Vec3 pos;
+        float radius = 0;
+        Vec3 bay;              // tuning shops: where the vehicle stands inside
+        float bayHeading = 0;
+    };
+    void tickPlaces(bool interact, bool hintTaken);
+    bool handlePlacesEvent(const gomp::ScriptEvent& e);
+    void drawHint(const std::string& key, const std::string& text);
+    void drawShop();
+    void drawFuel();
+
+    // Los Santos Customs (tuning_ui.cpp)
+    struct TuneState {
+        std::map<int, int> mods;  // type -> index, -1 = stock (toggles: 0 on, -1 off)
+        int primary = 0, secondary = 0, pearl = 0, wheelColor = 0, wheelType = 0, windowTint = 0, plateType = 0, livery = -1;
+        bool neonOn = false;
+        int neonR = 255, neonG = 255, neonB = 255;
+    };
+    enum class TuneKind { Mod, Toggle, Primary, Secondary, Pearl, WheelColor, WheelType, Tint, Neon, Plate, Livery };
+    struct TuneCategory {
+        std::string name;
+        TuneKind kind = TuneKind::Mod;
+        int modType = -1;
+    };
+    void enterTuning(uint16_t vehicle, const Place& shop);
+    void tickTuningTransition();
+    void openTuning(uint16_t vehicle);
+    void setTuneView(int preset);
+    void toggleTuneDoor(int door);
+    void drawTuning();
+    void endTuning();
+    void tickTuningResync();
+    TuneState readTuning(Vehicle veh) const;
+    void previewTuning(Vehicle veh, const TuneState& s);
+    int tuningPrice() const;
+    gomp::Value tuningOrder() const;
+
+    // houses and garages (houses.cpp)
+    struct House {
+        int id = 0;
+        std::string name, cls;
+        long long price = 0;
+        Vec3 door;
+        int owner = -1;  // static of the owner, -1 for sale
+        std::string ownerName;
+        bool locked = true;
+        Blip blip = 0;
+        float ground = 0;  // the ground under the door, for its marker
+        bool grounded = false;
+    };
+    struct HouseClass {
+        std::string name, interiorName;
+        int garage = 0;
+        Vec3 interior;
+    };
+    struct GarageCar {
+        Hash model = 0;
+        float fuel = 0;
+        std::string plate;
+        bool out = false;
+    };
+    struct HouseInfo {
+        int id = -1;
+        bool mine = false;
+        long long sellPrice = 0;
+        int cap = 0;
+        std::vector<GarageCar> garage;
+    };
+    bool handleHousesEvent(const gomp::ScriptEvent& e);
+    bool tickHouses(bool interact);  // true when it showed a hint (and took the E key)
+    void drawHouse();
+    void refreshHouseBlips();
+    void clearHouseBlips();
+    const House* houseById(int id) const;
+    const House* myHouse() const;
+    int myStatic() const;
+    bool roadSpot(Vec3 around, Vec3& spot, float& heading) const;
+    void garageTake(int house, int slot, bool release);
+    void tickHouseFade();
+    void tickProbe();
+    struct ProbeTarget {
+        std::string name;
+        Vec3 pos;
+        bool interior = false;
+    };
+    std::vector<ProbeTarget> probeTargets_;
+    int probeIndex_ = -1;  // -1 not started
+    DWORD probeAt_ = 0;
+    bool probing_ = false;
+
+    // the phone (phone.cpp)
+    struct PhoneContact {
+        std::string name, number;
+    };
+    struct PhoneSms {
+        std::string number, text;
+        bool out = false, read = true;
+        long long at = 0;
+    };
+    struct PhoneBankEntry {
+        long long at = 0, sum = 0;
+        std::string text;
+    };
+    enum class PhoneApp { Home, Contacts, Contact, ContactEdit, Messages, Thread, NewMessage, Bank, Transfer, House, Gps, Settings };
+    bool handlePhoneEvent(const gomp::ScriptEvent& e);
+    void openPhone();
+    void closePhone();
+    void tickPhone();
+    void drawPhone(bool submit);
+    void phoneGo(PhoneApp app);
+    std::string contactName(const std::string& number) const;
+    int unreadSms() const;
+
+    // inventory (inventory.cpp)
+    struct ItemDef {
+        std::string name, type, icon, desc;
+        int stack = 1;
+    };
+    struct Slot {
+        std::string key, label;
+        int count = 0;
+        long long uid = 0;
+        bool empty() const { return key.empty(); }
+    };
+    struct InvRef {
+        int container = -1, index = -1;  // 0 pockets, 1 hotbar, 2 equipment
+        bool valid() const { return container >= 0; }
+        bool operator==(const InvRef&) const = default;
+    };
+    void onInventoryDefs(const gomp::Value& defs);
+    void onInventorySync(const gomp::Value& inv);
+    void drawInventory();
+    void drawHotbar();
+    void drawSlot(InvRef ref, float x, float y, float w, float h, const char* caption);
+    void drawIcon(const std::string& icon, float x, float y, float w, float h, ui::Rgba tint, int level = 0);
+    Slot* slotAt(InvRef ref);
+    void tickWeaponControls();
     void drawLayout();
     void cancelLayout();
     bool uiButton(float x, float y, float w, float h, const std::string& text, bool primary = false, bool enabled = true);
@@ -253,6 +441,7 @@ private:
     std::set<std::string> terminatedScripts_;  // already logged
     Hash pendingSelfModel_ = 0;  // player model waiting for streaming
     gomp::Props selfProps_;      // own appearance, re-applied after a model change
+    std::pair<int, int> lastTopFix_{-1, -1};  // last arms/undershirt reported for our top
 
     // own state
     uint16_t myId_ = gomp::kNoID;
@@ -322,6 +511,96 @@ private:
     int onlineCount_ = 0;
     gomp::KV selfShared_;  // own shared and own-only variables (cash, bank, static)
 
+    // inventory.cpp
+    std::unordered_map<std::string, ItemDef> itemDefs_;
+    std::array<Slot, 24> pockets_;  // 6 x 4
+    std::array<Slot, 9> hotbar_;
+    std::array<Slot, 3> equip_;
+    int heldSlot_ = -1;
+    InvRef invSelected_, invPress_, invHover_;
+    float invPressX_ = 0, invPressY_ = 0;
+    bool invDragging_ = false;
+    DWORD dropConfirmAt_ = 0;
+    std::atomic<bool> inventoryRequested_{false};  // Tab (keyboard thread)
+    std::atomic<int> hotkeyRequested_{0};          // 1-9 (keyboard thread)
+    std::unordered_map<std::string, int> textures_;  // icon -> texture id, -1 when missing
+    std::unordered_map<int, int> textureUses_;        // texture id -> instances drawn this frame
+
+    // vehicle_ui.cpp
+    bool belted_ = false;
+    uint16_t classSentFor_ = gomp::kNoID;   // vehicle whose class went to the server
+    uint16_t fuelEmptyFor_ = gomp::kNoID;    // vehicle whose empty tank keeps its engine off
+    DWORD fobRequestedAt_ = 0;               // key fob animation waiting for its dictionary
+    uint16_t menuVehicle_ = gomp::kNoID;    // the vehicle of the G menu
+    std::vector<RadialItem> radial_;
+    std::vector<std::pair<Vehicle, DWORD>> lockBlinks_;  // indicators flashing after lock/unlock
+    std::atomic<bool> vehMenuRequested_{false}, lockRequested_{false}, beltRequested_{false}, interactRequested_{false};
+
+    // tuning_ui.cpp
+    uint16_t tuneVehicle_ = gomp::kNoID, tuneResyncVehicle_ = gomp::kNoID;
+    TuneState tuneOrig_, tune_;
+    std::vector<TuneCategory> tuneCats_;
+    int tuneCat_ = 0, tuneCatScroll_ = 0, tuneOptScroll_ = 0;
+    float tuneCamAngle_ = 0, tuneLastMouseX_ = -1;
+    bool tuneBought_ = false;
+    DWORD tuneResyncAt_ = 0;
+    logic::TunePrices tunePrices_;
+    // Driving into the workshop and back: 0 none, 1 fading out to go in, 2 loading the
+    // interior, 3 in the menu, 4 fading out to leave.
+    int tuneStage_ = 0;
+    DWORD tuneStageAt_ = 0;
+    uint16_t tuneEnterVehicle_ = gomp::kNoID;
+    Vec3 tuneBay_, tuneReturnPos_;
+    float tuneBayHeading_ = 0, tuneReturnHeading_ = 0;
+    int tuneInterior_ = 0;
+    logic::OrbitView tuneView_, tuneViewGoal_;
+    float tuneLastMouseY_ = -1;
+    bool tuneDoors_[6] = {};
+
+    // houses.cpp
+    std::vector<House> houses_;
+    std::map<std::string, HouseClass> houseClasses_;
+    HouseInfo houseInfo_;
+    int houseMenu_ = -1;            // the house of the open window
+    bool housePayByCard_ = false;
+    DWORD houseSellConfirmAt_ = 0, releaseConfirmAt_ = 0;
+    int releaseConfirmSlot_ = -1;
+    int insideHouse_ = -1;          // the house the player is in, -1 outside
+    int blipsStatic_ = -2;          // own static the house blips were coloured for
+    Vec3 houseExit_;
+    // Into a house and out: 1 faded out, waiting for the server; 2 there, waiting for the interior.
+    int houseFade_ = 0;
+    DWORD houseFadeAt_ = 0;
+    Vec3 houseFadeTarget_;
+    std::string houseFadeEvent_;    // sent once the screen is dark
+    int houseFadeArg_ = 0;
+    void startHouseFade(const std::string& event, int house);
+
+    // phone.cpp
+    std::atomic<bool> phoneRequested_{false};  // the up arrow (keyboard thread)
+    PhoneApp phoneApp_ = PhoneApp::Home;
+    std::vector<PhoneApp> phoneBack_;
+    std::string phoneNumber_;
+    std::vector<PhoneContact> contacts_;
+    std::vector<PhoneSms> sms_;
+    std::vector<PhoneBankEntry> bankLog_;
+    std::string phoneThread_;               // the number of the open conversation or contact
+    std::string phoneText_, phoneField1_, phoneField2_;
+    int phoneScroll_ = 0;
+    DWORD phoneOpenedAt_ = 0, phoneClosedAt_ = 0;
+    bool phoneTask_ = false;                // the ped holds the phone
+    DWORD phoneConfirmAt_ = 0;              // "delete the contact?" asked at
+
+    // places.cpp
+    std::vector<Place> places_;
+    int fuelPrice_ = 2;
+    std::vector<std::pair<std::string, int>> catalog_;  // item key, price
+    int shopIndex_ = -1;
+    std::map<std::string, int> shopQty_;
+    bool payByCard_ = false;
+    uint16_t fuelVehicle_ = gomp::kNoID;
+    float fuelLitres_ = 0;
+
     // hud.cpp
     Settings settings_, layoutBackup_;
     int menuTab_ = 0;
@@ -333,6 +612,9 @@ private:
     float dragDX_ = 0, dragDY_ = 0;
     FILE* log_ = nullptr;
 };
+
+// Arms (3) or undershirt (8) the game forces for a top (screens.cpp).
+int topForcedDrawable(Ped ped, int drawable, int texture, int type, int fallback);
 
 // Seat mapping: GoMP/RAGE seat 0 is the driver, GTA's driver seat index is -1.
 inline int gtaSeat(uint8_t seat) { return static_cast<int>(seat) - 1; }

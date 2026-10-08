@@ -5,12 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const dataDir = path.join(__dirname, '..', '..', 'data');
+// GOMP_DATA_DIR moves the database elsewhere (the tests use a temporary folder).
+const dataDir = process.env.GOMP_DATA_DIR || path.join(__dirname, '..', '..', 'data');
 const dataFile = path.join(dataDir, 'gomp-rp.json');
 
 const MAX_CHARACTERS = 3;
 
-let db = { nextStatic: 1, nextCharId: 1, accounts: {}, characters: {} };
+let db = { nextStatic: 1, nextCharId: 1, nextItemUid: 1, accounts: {}, characters: {} };
 try {
   db = { ...db, ...JSON.parse(fs.readFileSync(dataFile, 'utf8')) };
 } catch (e) {
@@ -31,6 +32,12 @@ function flush() {
   const tmp = `${dataFile}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
   fs.renameSync(tmp, dataFile);
+}
+
+// Serial numbers of non-stackable items.
+function nextUid() {
+  db.nextItemUid = (db.nextItemUid || 1) + 1;
+  return db.nextItemUid - 1;
 }
 
 function hashPassword(password, salt) {
@@ -150,6 +157,23 @@ function createCharacter(account, data = {}) {
   return { character: ch };
 }
 
+// Every character, also of players who are offline (phone numbers, transfers).
+function allCharacters() {
+  return Object.values(db.characters);
+}
+
+function characterByStatic(statik) {
+  const n = Number(statik);
+  return Object.values(db.characters).find((c) => c.static === n) || null;
+}
+
+// A named part of the database for other modules (houses.js keeps its owners here).
+function table(name) {
+  if (!db[name] || typeof db[name] !== 'object') db[name] = {};
+  return db[name];
+}
+
 module.exports = {
-  MAX_CHARACTERS, register, login, charactersOf, getCharacter, createCharacter, save, flush,
+  MAX_CHARACTERS, register, login, charactersOf, getCharacter, createCharacter, save, flush, nextUid,
+  allCharacters, characterByStatic, table,
 };

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- dotnet test tools/studio/GoMP.Studio.Tests; GOMP_GTA_DIR=<GTA V folder> also runs the tests with game files. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>GoMP.Studio.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../GoMP.Studio/GoMP.Studio.csproj" />
+    <ProjectReference Include="../GoMP.Studio.Core/GoMP.Studio.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <None Include="../testdata/**" LinkBase="testdata" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

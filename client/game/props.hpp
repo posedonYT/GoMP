@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <string_view>
 
 #include "gomp/messages.hpp"
 
@@ -48,5 +49,29 @@ inline Rgba color(const gomp::Props& p, uint8_t id, Rgba def = {}) {
 }
 // Map keys are decimal numbers ("<component>": ...).
 inline int key(const std::string& k) { return std::atoi(k.c_str()); }
+
+// Fields of a map value (script event arguments): nullptr / "" / 0 when absent.
+inline const gomp::Value* field(const gomp::Value& m, const char* name) {
+    return m.kind == gomp::Value::Kind::Map ? m.get(name) : nullptr;
+}
+inline std::string fieldStr(const gomp::Value& m, const char* name) {
+    const gomp::Value* v = field(m, name);
+    return v && v->kind == gomp::Value::Kind::String ? v->s : std::string();
+}
+inline long long fieldInt(const gomp::Value& m, const char* name) {
+    const gomp::Value* v = field(m, name);
+    return v ? v->asInt() : 0;
+}
+inline double fieldNum(const gomp::Value& m, const char* name) {
+    const gomp::Value* v = field(m, name);
+    return v ? v->asNumber() : 0;
+}
+
+// A shared variable of an entity (nullptr when it is not set).
+inline const gomp::Value* shared(const gomp::KV& kv, std::string_view name) {
+    for (const auto& [k, v] : kv)
+        if (k == name) return &v;
+    return nullptr;
+}
 
 }  // namespace gompgame::props

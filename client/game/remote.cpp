@@ -383,6 +383,7 @@ Vehicle GameClient::spawnRemoteVehicle(RemoteVehicle& v) {
     VEHICLE::SET_VEHICLE_IS_STOLEN(veh, false);
     VEHICLE::SET_VEHICLE_DOORS_LOCKED(veh, 1);
     v.appliedFlags = 0xFFFF;
+    v.appliedDoors = -1;
     applyVehicleProps(veh, v.props, &v);
     // A freshly created vehicle (nobody has synced it yet) is placed on its wheels.
     if (!synced && !props::find(v.props, prop::Rotation)) VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(veh, 5.0f);
@@ -554,6 +555,7 @@ void GameClient::despawnVehicle(RemoteVehicle& v) {
     deleteEntity(veh);
     v.handle = 0;
     v.appliedFlags = 0xFFFF;
+    v.appliedDoors = -1;
 }
 
 }  // namespace gompgame

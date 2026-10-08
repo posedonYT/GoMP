@@ -149,7 +149,11 @@ void GameClient::restorePlayerState() {
     Player player = PLAYER::PLAYER_ID();
     Ped me = PLAYER::PLAYER_PED_ID();
     if (CUTSCENE::IS_CUTSCENE_ACTIVE()) CUTSCENE::STOP_CUTSCENE_IMMEDIATELY();
-    CAMERA::RENDER_SCRIPT_CAMS(false, false, 0, true, false, 0);
+    // Our own camera (the tuning shop) and fades (driving into the workshop, going
+    // into a house) are left alone: switching script cameras off every second froze
+    // the tuning view.
+    const bool ownCamera = uiCam_ != 0 || tuneStage_ != 0 || houseFade_ != 0;
+    if (!ownCamera) CAMERA::RENDER_SCRIPT_CAMS(false, false, 0, true, false, 0);
     if (!PLAYER::IS_PLAYER_CONTROL_ON(player)) {
         PLAYER::SET_PLAYER_CONTROL(player, true, 0);
         log("player control restored");
@@ -157,7 +161,7 @@ void GameClient::restorePlayerState() {
     ENTITY::FREEZE_ENTITY_POSITION(me, false);
     ENTITY::SET_ENTITY_COLLISION(me, true, true);
     if (!ENTITY::IS_ENTITY_VISIBLE(me)) ENTITY::SET_ENTITY_VISIBLE(me, true, false);
-    if (CAMERA::IS_SCREEN_FADED_OUT() && !CAMERA::IS_SCREEN_FADING_OUT()) CAMERA::DO_SCREEN_FADE_IN(500);
+    if (!ownCamera && CAMERA::IS_SCREEN_FADED_OUT() && !CAMERA::IS_SCREEN_FADING_OUT()) CAMERA::DO_SCREEN_FADE_IN(500);
     HUD::DISPLAY_HUD(true);
     HUD::DISPLAY_RADAR(true);
 }
@@ -169,6 +173,8 @@ void GameClient::removeForeignBlips() {
         if (r.blip) ours.insert(r.blip);
     for (auto& [k, e] : world_)
         if (e.type == gomp::EntityType::Blip && e.handle) ours.insert(e.handle);
+    for (const House& h : houses_)
+        if (h.blip) ours.insert(h.blip);
     std::vector<Blip> foreign;
     for (int sprite = 0; sprite < kMaxBlipSprite; ++sprite)
         for (Blip b = HUD::GET_FIRST_BLIP_INFO_ID(sprite); HUD::DOES_BLIP_EXIST(b); b = HUD::GET_NEXT_BLIP_INFO_ID(sprite))

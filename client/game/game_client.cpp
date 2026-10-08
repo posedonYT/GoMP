@@ -5,6 +5,7 @@
 
 #include "natives.hpp"
 #include "patches.hpp"
+#include "props.hpp"
 
 namespace gompgame {
 
@@ -74,6 +75,9 @@ void GameClient::tick() {
             for (auto& [id, v] : vehicles_) despawnVehicle(v);
             for (auto& [k, e] : world_) despawnWorldEntity(e);
             closeScreens();
+            clearHouseBlips();
+            houses_.clear();
+            insideHouse_ = -1;
             selfShared_.clear();
             selfProps_.clear();
             players_.clear();
@@ -105,7 +109,11 @@ void GameClient::tick() {
         auto lines = std::move(pendingChat_);
         pendingChat_.clear();
         LeaveCriticalSection(&chatLock_);
-        for (auto& l : lines) send(Chat{l});
+        // "/command" lines are commands: the client's own (/perf, /status...) or the server's.
+        for (auto& l : lines) {
+            if (!l.empty() && l[0] == '/') runConsole(l);
+            else send(Chat{l});
+        }
 
         if (spawned_) {
             handleVehicleKeys();
@@ -125,6 +133,7 @@ void GameClient::tick() {
     } else if (net_->state() == Client::State::Rejected) {
         status_ = "rejected: " + net_->reason();
     }
+    tickProbe();
     tickScreens();
     drawUi();
     drawConsole();
@@ -255,7 +264,7 @@ void GameClient::handle(const uint8_t* d, std::size_t n) {
                 enterStarted_ = Clock::now();
                 TASK::TASK_ENTER_VEHICLE(me, veh, 10000, gtaSeat(r.seat), 1.0f, 1, nullptr);
             } else if (r.result == EnterResult::Locked) {
-                notify("~r~The vehicle is locked");
+                notify("~r~Транспорт закрыт");
             }
             return;
         }
@@ -292,8 +301,7 @@ void GameClient::handle(const uint8_t* d, std::size_t n) {
             Chat c;
             if (!unmarshal(d, n, c)) return;
             chatLines_.push_back(c.text);
-            while (chatLines_.size() > 10) chatLines_.pop_front();
-            consolePrint(c.text);  // command replies show up in the admin console too
+            while (chatLines_.size() > 50) chatLines_.pop_front();
             return;
         }
         case MsgID::Notify: {
@@ -510,6 +518,24 @@ void GameClient::applySelfProps(const Props& p) {
         }
     }
     applyAppearance(me, p);
+
+    // Clothes given by the server may come with the wrong arms: the game knows the right
+    // ones for each top, so report them and the server stores them with the item.
+    const Value* clothes = props::find(selfProps_, prop::Clothes);
+    if (props::find(p, prop::Clothes) && clothes && clothes->kind == Value::Kind::Map && !pendingSelfModel_) {
+        const Value* top = clothes->get("11");
+        const Value* torso = clothes->get("3");
+        if (top && top->kind == Value::Kind::Array) {
+            int drawable = static_cast<int>(props::at(*top, 0)), texture = static_cast<int>(props::at(*top, 1));
+            int arms = topForcedDrawable(me, drawable, texture, 3, -1);
+            int under = topForcedDrawable(me, drawable, texture, 8, -1);
+            int current = torso ? static_cast<int>(props::at(*torso, 0)) : -1;
+            if (arms >= 0 && arms != current && lastTopFix_ != std::make_pair(drawable, arms)) {
+                lastTopFix_ = {drawable, arms};
+                send(ScriptEvent{"gomp:inv:fixtop", {Value::integer(arms), Value::integer(under)}});
+            }
+        }
+    }
 }
 
 void GameClient::onSetPosition(const SetPosition& sp) {
@@ -608,7 +634,7 @@ void GameClient::onShot(const WeaponShotOut& s) {
 }
 
 void GameClient::onScriptEvent(const ScriptEvent& e) {
-    if (handleUiEvent(e)) return;
+    if (handleUiEvent(e) || handleVehicleEvent(e) || handlePlacesEvent(e) || handleHousesEvent(e) || handlePhoneEvent(e)) return;
     if (e.name == "__gomp:blipRoute" && !e.args.empty() && e.args[0].kind == Value::Kind::Entity) {
         auto it = world_.find({static_cast<uint8_t>(EntityType::Blip), e.args[0].e.id});
         bool on = e.args.size() > 1 && e.args[1].b;

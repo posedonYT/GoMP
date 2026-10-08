@@ -44,6 +44,7 @@ Config loadConfig(const std::string& path) {
     }
     if (auto s = field(json, "name"); !s.empty()) c.name = s.substr(0, 32);
     if (auto s = field(json, "interpolationDelayMs"); !s.empty()) c.interpolationDelayMs = std::stoi(s);
+    c.probe = field(json, "probe");
     // A per-installation serial derived from the Windows machine GUID.
     char guid[64] = {};
     DWORD size = sizeof(guid);
