@@ -53,10 +53,42 @@ static void probeRotations(const std::function<void(const std::string&)>& log) {
     STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
 }
 
+// "vehicles[:model,model...]": what the game made of the vehicles of the add-on
+// packs (after editing them in GoMP Studio): the name from vehicles.meta and what
+// the handling gives (fInitialDriveMaxFlatVel, fInitialDriveForce, fBrakeForce):
+//   probe-veh: <model> cdimage <0|1> name <gameName> maxspeed <m/s> accel <a> braking <b>
+static void probeVehicles(const std::string& models, const std::function<void(const std::string&)>& log) {
+    size_t start = 0;
+    while (start < models.size()) {
+        size_t end = models.find(',', start);
+        if (end == std::string::npos) end = models.size();
+        const std::string name = models.substr(start, end - start);
+        start = end + 1;
+        const Hash model = gomp::joaat(name);
+        const bool known = STREAMING::IS_MODEL_IN_CDIMAGE(model);
+        if (known) {
+            STREAMING::REQUEST_MODEL(model);
+            for (int i = 0; i < 300 && !STREAMING::HAS_MODEL_LOADED(model); ++i) shv::wait(10);
+        }
+        char line[300];
+        std::snprintf(line, sizeof(line), "probe-veh: %s cdimage %d name %s maxspeed %.3f accel %.4f braking %.4f", name.c_str(), known ? 1 : 0,
+                      known ? VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(model) : "-", known ? VEHICLE::GET_VEHICLE_MODEL_ESTIMATED_MAX_SPEED(model) : 0.0f,
+                      known ? VEHICLE::GET_VEHICLE_MODEL_ACCELERATION(model) : 0.0f, known ? VEHICLE::GET_VEHICLE_MODEL_MAX_BRAKING(model) : 0.0f);
+        log(line);
+        if (known) STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
+    }
+}
+
 void GameClient::tickProbe() {
     if (cfg_.probe == "rotation" && probeIndex_ < 0 && screen_ == Screen::Login) {
         probeIndex_ = 0;
         probeRotations([this](const std::string& line) { log(line); });
+        log("probe: done");
+        return;
+    }
+    if (cfg_.probe.rfind("vehicles", 0) == 0 && probeIndex_ < 0 && screen_ == Screen::Login) {
+        probeIndex_ = 0;
+        probeVehicles(cfg_.probe.size() > 9 ? cfg_.probe.substr(9) : "g37s,felon2", [this](const std::string& line) { log(line); });
         log("probe: done");
         return;
     }

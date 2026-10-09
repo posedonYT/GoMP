@@ -87,7 +87,13 @@ export class MapObjects {
       box.scale.set(Math.max(0.05, x1 - x0), Math.max(0.05, y1 - y0), Math.max(0.05, z1 - z0));
       box.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
       node.userData.info = info;
-      if (this.models) this.models.attach(node, info);
+      if (!this.models) return;
+      this.models.instance(info.hash).then((model) => {
+        if (!model || this.nodes.get(o.id) !== node) return;
+        node.add(model);
+        node.userData.hasModel = true;
+        this.paint(node);
+      });
     });
     return node;
   }

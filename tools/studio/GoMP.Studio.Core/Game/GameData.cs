@@ -19,9 +19,18 @@ public sealed class GameData
     private List<ArchetypeInfo> named = new();
 
     public string GameDir { get; }
+    // How the archives are scanned (GameArchives): null — CodeWalker's own scan on Windows only.
+    public bool? OwnScan { get; init; }
     public GameState State { get; private set; } = GameState.None;
     public string Status { get; private set; } = "нет папки игры";
     public GameFileCache Cache { get; private set; }
+    public Export.ModelExporter Exporter { get; private set; }
+    public WorldIndex World { get; private set; }
+    public Exception Error { get; private set; }  // why loading failed (for the console)
+
+    // Handling, kit and light ids, paints of the game: read when the vehicle editor first needs them.
+    private Lazy<Vehicles.GameVehicles> vehicles;
+    public Vehicles.GameVehicles Vehicles => vehicles?.Value;
     public event Action<GameState, string> Changed;
 
     public GameData(string gameDir)
@@ -57,7 +66,7 @@ public sealed class GameData
                 LoadPeds = false,
                 LoadAudio = false,
             };
-            cache.Init(s => Set(GameState.Loading, s), e => { });
+            GameArchives.Init(cache, GameDir, s => Set(GameState.Loading, s), e => { }, OwnScan);
             var dict = new Dictionary<uint, ArchetypeInfo>();
             foreach (var ytyp in cache.YtypDict.Values)
                 foreach (var arch in ytyp.AllArchetypes ?? Array.Empty<Archetype>())
@@ -67,11 +76,15 @@ public sealed class GameData
                 archetypes = dict;
                 named = dict.Values.Where(a => a.Name != null).OrderBy(a => a.Name, StringComparer.Ordinal).ToList();
                 Cache = cache;
+                Exporter = new Export.ModelExporter(cache);
+                World = new WorldIndex(cache);
+                vehicles = new Lazy<Vehicles.GameVehicles>(() => GoMP.Studio.Vehicles.GameVehicles.Load(cache));
             }
             Set(GameState.Ready, $"готово: {dict.Count} моделей");
         }
         catch (Exception e)
         {
+            Error = e;
             Set(GameState.Failed, "ошибка загрузки игры: " + e.Message);
         }
     }

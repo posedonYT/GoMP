@@ -54,6 +54,31 @@ public sealed class GameTests
         Assert.InRange(bench.BBMax[2] - bench.BBMin[2], 0.3f, 1.5f);
     }
 
+    // Linux and macOS scan the archives with GameArchives (CodeWalker's scan finds
+    // no update and no DLCs there). On Windows it must find what CodeWalker finds.
+    [GameFact]
+    public void The_archive_scan_finds_the_update_and_the_dlcs()
+    {
+        var a = fixture.Game.Cache;
+        Assert.True(a.RpfMan.RpfDict.ContainsKey(@"update\update.rpf"));  // (AllRpfs may have its copy in mods)
+        Assert.True(a.DlcNameList.Count > 50, $"{a.DlcNameList.Count} DLCs");
+        Assert.Equal(@"update\x64\dlcpacks\mpbeach\dlc.rpf",
+                     GameArchives.ArchiveName(Path.Combine("x", "gta"), Path.Combine("x", "gta", "update", "x64", "dlcpacks", "mpBeach", "dlc.rpf")));
+        if (!OperatingSystem.IsWindows()) return;  // the fixture already used it
+
+        var own = new GameData(GameFactAttribute.Dir) { OwnScan = true };
+        own.StartLoading().Wait();
+        Assert.Equal(GameState.Ready, own.State);
+        var b = own.Cache;
+        Assert.Equal(a.RpfMan.AllRpfs.Select(r => r.Path).Order(), b.RpfMan.AllRpfs.Select(r => r.Path).Order());
+        Assert.Equal(a.AllRpfs.Count, b.AllRpfs.Count);
+        Assert.Equal(a.DlcNameList, b.DlcNameList);
+        Assert.Equal(a.DlcActiveRpfs.Count, b.DlcActiveRpfs.Count);
+        Assert.Equal(a.YmapDict.Count, b.YmapDict.Count);
+        Assert.Equal(a.YtypDict.Count, b.YtypDict.Count);
+        Assert.NotNull(own.Get(Joaat.Hash("prop_bench_01a")));
+    }
+
     [GameFact]
     public void Search_finds_props_first()
     {

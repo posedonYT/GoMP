@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CHandlingDataMgr>
+  <HandlingData>
+    <Item type="CHandlingData">
+      <handlingName>TESTCAR</handlingName>
+      <fMass value="1500.000000" />
+      <fInitialDragCoeff value="8.000000" />
+      <vecCentreOfMassOffset x="0.000000" y="0.050000" z="-0.100000" />
+      <fDriveBiasFront value="0.000000" />
+      <nInitialDriveGears value="6" />
+      <fInitialDriveForce value="0.320000" />
+      <fInitialDriveMaxFlatVel value="155.000000" />
+      <fBrakeForce value="0.900000" />
+      <fSteeringLock value="40.000000" />
+      <strModelFlags>440010</strModelFlags>
+    </Item>
+  </HandlingData>
+</CHandlingDataMgr>

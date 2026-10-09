@@ -9,6 +9,8 @@
 //   GET    /api/cursor                      where /mapcursor put an admin (204: nowhere yet)
 //   GET    /api/catalog?q=&limit=           models of the game to place (503 while loading)
 //   GET    /api/catalog/{model}             one model, by name or hash
+//   GET    /api/models/{model}.glb?lod=&tex= the model as glTF (Z up; lod high, med, low, vlow; tex: texture size)
+//   GET    /api/world/cell?x=&y=            entities of the world in a cell of 256 m (indices: floor(coord / 256))
 //   GET    /api/events                      server-sent events: gta, cursor, maps
 using GoMP.Studio.Game;
 using GoMP.Studio.Maps;
@@ -92,6 +94,25 @@ public static class Api
             uint hash = uint.TryParse(model, out uint h) ? h : Joaat.Hash(model);
             return g.Get(hash) is { } a ? Results.Json(a) : Results.NotFound(new { error = $"модели {model} нет в игре" });
         });
+
+        api.MapGet("/models/{file}", (string file, string lod, int? tex, GameData g, GoMP.Studio.Export.ModelCache cache) =>
+        {
+            if (!file.EndsWith(".glb")) return Results.NotFound();
+            if (g.State != GameState.Ready) return Results.Json(new { error = g.Status }, statusCode: 503);
+            string model = file[..^4];
+            uint hash = uint.TryParse(model, out uint h) ? h : Joaat.Hash(model);
+            var level = Enum.TryParse<GoMP.Studio.Export.Lod>(lod ?? "high", true, out var l) ? l : GoMP.Studio.Export.Lod.High;
+            int size = Math.Clamp(tex ?? GoMP.Studio.Export.ModelExporter.MaxTextureSize, 16, 2048);
+            var data = cache.Get(hash, level, () => g.Exporter.Export(hash, level, size), size);
+            return data == null ? Results.NotFound(new { error = $"у модели {model} нет геометрии" }) : Results.File(data, "model/gltf-binary");
+        });
+
+        api.MapGet("/world/cell", (int x, int y, GameData g) =>
+            g.State != GameState.Ready
+                ? Results.Json(new { error = g.Status }, statusCode: 503)
+                : Results.Json(g.World.Entities(x, y)));
+
+        VehiclesApi.Map(api);
 
         api.MapGet("/events", (HttpContext ctx, EventHub hub) => hub.Stream(ctx));
     }

@@ -16,3 +16,4 @@ server-files/packages/*/admin.json
 /tools/studio/*/bin/
 /tools/studio/*/obj/
 /tools/studio/web/node_modules/
+/dist/

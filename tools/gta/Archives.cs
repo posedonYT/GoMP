@@ -12,15 +12,23 @@ public static class Keys
     private static readonly object Lock = new();
     private static string loadedFrom;
 
-    // Reads the archive keys from GTA5.exe in the game folder (once per folder).
+    // Reads the archive keys from GTA5.exe in the game folder (once per folder). The
+    // exe is read here: CodeWalker opens folder + "\gta5.exe", which is no path on
+    // Linux or macOS (nor the name, where names are case-sensitive).
     public static void Load(string gameDir)
     {
         lock (Lock)
         {
             string full = Path.GetFullPath(gameDir);
             if (loadedFrom == full) return;
-            if (!File.Exists(Path.Combine(full, "GTA5.exe"))) throw new FileNotFoundException("GTA5.exe is not in " + full);
-            GTA5Keys.LoadFromPath(full, false, null);
+            string exe = Directory.Exists(full)
+                ? Directory.EnumerateFiles(full).FirstOrDefault(f => Path.GetFileName(f).Equals("GTA5.exe", StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (exe == null) throw new FileNotFoundException("GTA5.exe is not in " + full);
+            GTA5Keys.GenerateV2(File.ReadAllBytes(exe), null);
+            if (GTA5Keys.PC_AES_KEY == null) throw new InvalidDataException("no archive keys in " + exe);
+            // With the AES key given, the rest of the keys come from CodeWalker's own data.
+            GTA5Keys.LoadFromPath(full, false, Convert.ToBase64String(GTA5Keys.PC_AES_KEY));
             loadedFrom = full;
         }
     }

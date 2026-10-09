@@ -9,6 +9,7 @@
 | `runtimes/node/` | RAGE.MP-совместимый рантайм `mp.*` (Node.js, отдельный процесс) |
 | `server-files/` | Раскладка как у RAGE.MP: `conf.json`, `packages/freeroam`, `client_packages/` |
 | `tools/` | Go-боты, стресс-тест, генератор нативок |
+| `tools/studio/` | GoMP Studio — 3D-редактор карты сервера и кастомных машин (Windows/Linux/macOS), см. `tools/studio/README.md` |
 | `client/` | C++ клиент: `core` (протокол/транспорт), `headless`, `game` (ASI, в работе) |
 | `docs/` | `research.md` — анализ RAGE.MP / FiveM / alt:V |
 

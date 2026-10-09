@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CDataFileMgr__ContentsOfDataFileXml>
+	<disabledFiles />
+	<includedXmlFiles />
+	<includedDataFiles />
+	<dataFiles>
+		<Item>
+			<filename>dlc_testcar:/common/data/levels/gta5/vehicles.meta</filename>
+			<fileType>VEHICLE_METADATA_FILE</fileType>
+			<locked value="false" />
+			<disabled value="true" />
+			<persistent value="true" />
+			<overlay value="true" />
+		</Item>
+	</dataFiles>
+	<contentChangeSets>
+		<Item>
+			<changeSetName>testcar_AUTOGEN</changeSetName>
+			<filesToEnable>
+				<Item>dlc_testcar:/common/data/levels/gta5/vehicles.meta</Item>
+			</filesToEnable>
+		</Item>
+	</contentChangeSets>
+	<patchFiles />
+</CDataFileMgr__ContentsOfDataFileXml>

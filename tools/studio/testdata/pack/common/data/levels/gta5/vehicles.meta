@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CVehicleModelInfo__InitDataList>
+  <residentTxd>vehshare</residentTxd>
+  <InitDatas>
+    <Item>
+      <modelName>testcar</modelName>
+      <txdName>testcar</txdName>
+      <handlingId>TESTCAR</handlingId>
+      <gameName>TESTCAR</gameName>
+      <vehicleMakeName>GOMP</vehicleMakeName>
+      <!-- a comment the editor must keep -->
+      <audioNameHash>FELON2</audioNameHash>
+      <layout>LAYOUT_STD_EXITFIXUP</layout>
+      <flags>FLAG_SPORTS FLAG_RICH_CAR</flags>
+      <vehicleClass>VC_COUPE</vehicleClass>
+      <wheelType>VWT_HIEND</wheelType>
+      <swankness>SWANKNESS_3</swankness>
+      <customField value="42" />
+    </Item>
+    <Item>
+      <modelName>othercar</modelName>
+      <txdName>othercar</txdName>
+      <handlingId>FELON2</handlingId>
+      <gameName>OTHER</gameName>
+      <vehicleClass>VC_SEDAN</vehicleClass>
+    </Item>
+  </InitDatas>
+  <txdRelationships>
+    <Item>
+      <parent>vehicles_schaf_interior</parent>
+      <child>testcar</child>
+    </Item>
+  </txdRelationships>
+</CVehicleModelInfo__InitDataList>

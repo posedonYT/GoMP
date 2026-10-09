@@ -6,6 +6,9 @@ import { api, listen } from './api.js';
 import { $, $$, h, toast, setStatus, typing, confirmBox } from './ui/dom.js';
 import { Viewport } from './scene/viewport.js';
 import { MapObjects, forgetModelInfo, modelInfo } from './scene/objects.js';
+import { Models } from './scene/models.js';
+import { World } from './scene/world.js';
+import { VehicleEditor } from './ui/vehicles.js';
 import { MapDocument } from './editor/document.js';
 import { Selection } from './editor/selection.js';
 import { dragPatches, placeOnGround, pasteAt } from './editor/transform.js';
@@ -15,7 +18,12 @@ import { renderMaps, newMap, renderOutliner, renderCatalog, renderInspector, ren
 class Studio {
   constructor() {
     this.viewport = new Viewport($('#viewport'));
-    this.objects = new MapObjects(this.viewport);
+    this.models = new Models();
+    this.objects = new MapObjects(this.viewport, this.models);
+    this.world = new World(this.viewport, this.models);
+    this.world.addEventListener('stats', (e) => { this.worldStats = e.detail; });
+    this.vehicles = new VehicleEditor(this);
+    this.mapPanels = $('#right').innerHTML;  // restored when the vehicle editor closes
     this.selection = new Selection();
     this.doc = null;
     this.unsubscribe = null;
@@ -152,6 +160,7 @@ class Studio {
   bindViewport() {
     const vp = this.viewport;
     vp.addEventListener('pick', (e) => {
+      if (this.vehicles.active) return;  // the showroom has nothing to pick
       const { id, shift, ctrl, point } = e.detail;
       if (this.placing) {
         if (point) this.place(point);
@@ -210,8 +219,12 @@ class Studio {
     }
     this.stopPlacing();
     const size = info.bbMax.map((v, i) => Math.max(0.05, v - info.bbMin[i]));
-    const ghost = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial({ color: 0x20b8cd, transparent: true, opacity: 0.4, depthWrite: false }));
-    ghost.geometry.translate(...info.bbMin.map((v, i) => v + size[i] / 2));
+    // The model where it would stand (its box until the model arrives).
+    const ghost = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial({ color: 0x20b8cd, transparent: true, opacity: 0.25, depthWrite: false }));
+    box.geometry.translate(...info.bbMin.map((v, i) => v + size[i] / 2));
+    ghost.add(box);
+    this.models.instance(info.hash).then((model) => { if (model && this.placing && this.placing.ghost === ghost) ghost.add(model); });
     this.viewport.scene.add(ghost);
     this.placing = { model: info.name, info, ghost };
     $('#placing').hidden = false;
@@ -222,7 +235,7 @@ class Studio {
   stopPlacing() {
     if (!this.placing) return;
     this.viewport.scene.remove(this.placing.ghost);
-    this.placing.ghost.geometry.dispose();
+    this.placing.ghost.children[0].geometry.dispose();
     this.placing = null;
     $('#placing').hidden = true;
     renderCatalog(this, this.catalogResults || [], this.catalogState);
@@ -303,6 +316,7 @@ class Studio {
         $$('#space button').forEach((x) => x.classList.toggle('on', x === b));
       };
     });
+    $('#world-on').onchange = (e) => this.world.setEnabled(e.target.checked);
     $('#snap-move').onchange = () => this.applySnap();
     $('#snap-rot').onchange = () => this.applySnap();
     this.applySnap();
@@ -318,7 +332,7 @@ class Studio {
       clearTimeout(timer);
       timer = setTimeout(() => this.searchCatalog(e.target.value), 200);
     };
-    $('#vehicles-panel').append(h('p', { class: 'hint' }, 'Редактор машин появится на следующем этапе.'));
+
   }
 
   async searchCatalog(q) {
@@ -337,7 +351,8 @@ class Studio {
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.code === 'KeyS') {
         e.preventDefault();
-        this.save();
+        if (this.vehicles.active) this.vehicles.save();
+        else this.save();
         return;
       }
       if (typing()) return;
@@ -361,10 +376,20 @@ class Studio {
     });
   }
 
+  // The right panel of the map (after the vehicle editor had it).
+  showMapPanels() {
+    $('#right').innerHTML = this.mapPanels;
+    renderInspector(this);
+    renderMapProps(this);
+    renderIssues([]);
+  }
+
   updateHud() {
     const t = this.viewport.target;
     const p = this.hoverPoint;
-    $('#hud-pos').textContent = `цель ${t.x.toFixed(1)} ${t.y.toFixed(1)} ${t.z.toFixed(1)}${p ? ` · курсор ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}` : ''}`;
+    const w = this.worldStats;
+    $('#hud-pos').textContent = `цель ${t.x.toFixed(1)} ${t.y.toFixed(1)} ${t.z.toFixed(1)}${p ? ` · курсор ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}` : ''}`
+      + (w && this.world.enabled ? ` · мир: ${w.entities} объектов, ${w.models} моделей${w.loading ? `, грузится ${w.loading}` : ''}` : '');
   }
 
   setGame(state, status) {
@@ -372,12 +397,16 @@ class Studio {
     pill.className = `pill ${state}`;
     pill.textContent = `игра: ${status}`;
     pill.title = status;
+    this.world.ready = state === 'ready';
     if (state === 'ready') {
       forgetModelInfo();
+      this.models.clear();
+      this.world.clear();
       this.objects.setDocument(this.doc);
       this.objects.setSelected(this.selection.ids);
       this.attachGizmo();
       this.searchCatalog($('#catalog-search').value);
+      this.vehicles.loadPalette();
     }
   }
 
@@ -413,6 +442,7 @@ async function main() {
     if (type === 'maps') studio.refreshMaps();
   });
   await studio.refreshMaps();
+  await studio.vehicles.init();
 }
 
 main();

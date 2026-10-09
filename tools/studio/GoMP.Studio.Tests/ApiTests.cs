@@ -50,6 +50,25 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(HttpStatusCode.ServiceUnavailable, catalog.StatusCode);
     }
 
+    // The pages are built into the program (one file to copy), without the tests.
+    [Fact]
+    public async Task The_pages_are_built_in()
+    {
+        var index = await http.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, index.StatusCode);
+        Assert.Contains("GoMP Studio", await index.Content.ReadAsStringAsync());
+        Assert.Equal("no-cache", index.Headers.CacheControl?.ToString());
+        foreach (string path in new[] { "/js/app.js", "/js/ui/vehicles.js", "/vendor/three/three.module.js", "/vendor/three/addons/loaders/GLTFLoader.js", "/css/studio.css" })
+        {
+            var r = await http.GetAsync(path);
+            Assert.True(r.StatusCode == HttpStatusCode.OK, path);
+            Assert.True(r.Content.Headers.ContentLength > 0, path);
+        }
+        Assert.Contains("javascript", (await http.GetAsync("/js/app.js")).Content.Headers.ContentType?.MediaType);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/test/lod.test.mjs")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/nope.js")).StatusCode);
+    }
+
     [Fact]
     public async Task Maps_are_saved_where_the_server_reads_them()
     {

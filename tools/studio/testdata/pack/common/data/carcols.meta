@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CVehicleModelInfoVarGlobal>
+  <Kits>
+    <Item>
+      <kitName>2020_testcar_modkit</kitName>
+      <id value="950" />
+      <kitType>MKT_SPECIAL</kitType>
+      <visibleMods>
+        <Item>
+          <modelName>testcar_spoiler_1</modelName>
+          <modShopLabel>TESTCAR_SPL1</modShopLabel>
+          <linkedModels />
+          <turnOffBones>
+            <Item>misc_a</Item>
+          </turnOffBones>
+          <type>VMT_SPOILER</type>
+          <bone>chassis</bone>
+        </Item>
+      </visibleMods>
+    </Item>
+  </Kits>
+  <Lights>
+    <Item>
+      <id value="2783" />
+      <indicator>
+        <intensity value="0.375000" />
+      </indicator>
+    </Item>
+  </Lights>
+</CVehicleModelInfoVarGlobal>

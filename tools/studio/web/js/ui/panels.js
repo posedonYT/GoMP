@@ -136,7 +136,7 @@ export function renderInspector(studio) {
   const vec = (label, arr, key, step) => h('div', { class: 'field' }, h('label', {}, label), h('div', { class: 'vec' },
     ...arr.map((v, i) => numberInput(v, (n) => { const next = arr.slice(); next[i] = n; update({ [key]: next }, key); }, step))));
 
-  box.replaceChildren(
+  box.replaceChildren(...[
     many ? h('p', { class: 'hint' }, `Выбрано объектов: ${ids.length}. Поля меняют все (позиция — сдвигом).`) : null,
     h('div', { class: 'field' }, h('label', {}, 'id'), h('code', {}, o.id)),
     h('div', { class: 'field' }, h('label', {}, 'Модель'), h('input', {
@@ -157,7 +157,7 @@ export function renderInspector(studio) {
       h('button', { onclick: () => studio.focusSelection(), title: 'F' }, 'Показать'),
       h('button', { onclick: () => studio.duplicate(), title: 'Ctrl+D' }, 'Копия'),
       h('button', { class: 'danger', onclick: () => studio.removeSelection(), title: 'Delete' }, 'Удалить')),
-  );
+  ].filter(Boolean));
 }
 
 export function renderMapProps(studio) {

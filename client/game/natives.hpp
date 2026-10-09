@@ -361,6 +361,9 @@ inline BOOL GET_VEHICLE_LIGHTS_STATE(Vehicle vehicle, BOOL* lightsOn, BOOL* high
 inline int GET_VEHICLE_LIVERY(Vehicle vehicle) { return invoke<int>(0x2BB9230590DA5E8Aull, vehicle); }
 inline int GET_VEHICLE_LIVERY_COUNT(Vehicle vehicle) { return invoke<int>(0x87B63E25A529D526ull, vehicle); }
 inline int GET_VEHICLE_MOD(Vehicle vehicle, int modType) { return invoke<int>(0x772960298DA26FDBull, vehicle, modType); }
+inline float GET_VEHICLE_MODEL_ACCELERATION(Hash modelHash) { return invoke<float>(0x8C044C5C84505B6Aull, modelHash); }
+inline float GET_VEHICLE_MODEL_ESTIMATED_MAX_SPEED(Hash modelHash) { return invoke<float>(0xF417C2502FFFED43ull, modelHash); }
+inline float GET_VEHICLE_MODEL_MAX_BRAKING(Hash modelHash) { return invoke<float>(0xDC53FD41B4ED944Cull, modelHash); }
 inline void GET_VEHICLE_NEON_COLOUR(Vehicle vehicle, int* r, int* g, int* b) { return invoke<void>(0x7619EEE8C886757Full, vehicle, r, g, b); }
 inline BOOL GET_VEHICLE_NEON_ENABLED(Vehicle vehicle, int index) { return invoke<BOOL>(0x8C4B92553E4766A5ull, vehicle, index); }
 inline const char* GET_VEHICLE_NUMBER_PLATE_TEXT(Vehicle vehicle) { return invoke<const char*>(0x7CE1CCB9B293020Eull, vehicle); }

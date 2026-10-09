@@ -14,7 +14,7 @@ export class Viewport extends EventTarget {
   constructor(container) {
     super();
     this.container = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.append(this.renderer.domElement);
@@ -23,7 +23,7 @@ export class Viewport extends EventTarget {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x9fb6c8);
     this.scene.fog = new THREE.Fog(0x9fb6c8, 1500, 6000);
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 20000);
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.3, 8000);
     this.camera.up.set(0, 0, 1);
 
     const hemi = new THREE.HemisphereLight(0xdfeeff, 0x4a4436, 1.4);
@@ -114,8 +114,13 @@ export class Viewport extends EventTarget {
       const hit = this.pickObject();
       this.dispatchEvent(new CustomEvent('pick', { detail: { id: hit, shift: e.shiftKey, ctrl: e.ctrlKey, point: this.groundPoint() } }));
     });
+    // The point under the mouse at most every 40 ms: rays against the world are not free.
+    let lastHover = 0;
     el.addEventListener('pointermove', (e) => {
       this.setPointer(e);
+      const now = performance.now();
+      if (now - lastHover < 40) return;
+      lastHover = now;
       this.dispatchEvent(new CustomEvent('hover', { detail: { point: this.groundPoint() } }));
     });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -194,6 +199,23 @@ export class Viewport extends EventTarget {
     const t = this.controls.target;
     this.grid.position.set(Math.round(t.x / 10) * 10, Math.round(t.y / 10) * 10, t.z - 0.02);
     for (const fn of this.onFrame) fn(dt);
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.other || this.scene, this.camera);
+  }
+
+  // Another scene in the view (the vehicle showroom); null: back to the map, where the camera was.
+  showScene(scene, target, distance) {
+    if (scene && !this.other) this.saved = { pos: this.camera.position.clone(), target: this.controls.target.clone() };
+    this.other = scene;
+    this.grid.visible = !scene;
+    if (scene) {
+      this.gizmo.detach();
+      this.controls.target.copy(target);
+      this.camera.position.set(target.x + distance * 0.75, target.y - distance, target.z + distance * 0.45);
+      this.controls.update();
+    } else if (this.saved) {
+      this.camera.position.copy(this.saved.pos);
+      this.controls.target.copy(this.saved.target);
+      this.controls.update();
+    }
   }
 }

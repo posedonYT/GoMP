@@ -7,11 +7,29 @@
     <!-- The pages come from tools/studio/web (below), not from the static web assets pipeline. -->
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
+  <!-- dotnet publish -r <win-x64|linux-x64|osx-x64|osx-arm64>: one program with .NET inside (make studio-dist). -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Unpacked on the first start (to ~/.net or DOTNET_BUNDLE_EXTRACT_BASE_DIR): CodeWalker
+         finds its strings.txt next to its own dll (Assembly.Location). -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <DebugType>embedded</DebugType>
+    <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+  </PropertyGroup>
+  <!-- Only the program: no symbols of the libraries. -->
+  <Target Name="OnlyTheProgram" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <ProjectReference Include="../GoMP.Studio.Core/GoMP.Studio.Core.csproj" />
   </ItemGroup>
-  <!-- The browser part (tools/studio/web) is served as wwwroot. -->
+  <!-- The browser part (tools/studio/web) is built in as web/<path> (EmbeddedWeb.cs). -->
   <ItemGroup>
-    <Content Include="../web/**" Exclude="../web/test/**;../web/node_modules/**" LinkBase="wwwroot" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../web/**" Exclude="../web/test/**;../web/node_modules/**" LogicalName="web/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@ public sealed class StudioOptions
     public string ServerFiles { get; init; }
     public string AddonsDir { get; init; }
     public int Port { get; init; } = 22100;
+    public string CacheDir { get; init; }
     public bool OpenBrowser { get; init; } = true;
 
     public string MapsDir => Path.Combine(ServerFiles, "maps");
@@ -21,6 +22,8 @@ public sealed class StudioOptions
         ["--addons"] = "Studio:Addons",
         ["--port"] = "Studio:Port",
         ["--no-browser"] = "Studio:NoBrowser",
+        ["--web"] = "Studio:Web",
+        ["--cache"] = "Studio:Cache",
     };
 
     public static StudioOptions From(IConfiguration c)
@@ -33,6 +36,7 @@ public sealed class StudioOptions
             AddonsDir = Path.GetFullPath(c["Studio:Addons"] ?? FindUp(Path.Combine("client-dist", "addons")) ?? "addons"),
             Port = int.TryParse(c["Studio:Port"], out int p) ? p : 22100,
             OpenBrowser = c["Studio:NoBrowser"] == null,
+            CacheDir = c["Studio:Cache"] ?? Export.ModelCache.DefaultRoot,
         };
     }
 

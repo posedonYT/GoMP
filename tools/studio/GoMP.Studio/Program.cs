@@ -6,15 +6,19 @@
 //   gomp-studio --gta ~/GTAV --server-files ./server-files --addons ./client-dist/addons --port 22100 --no-browser
 using System.Diagnostics;
 using GoMP.Studio;
+using Microsoft.Extensions.FileProviders;
 using GoMP.Studio.Game;
 using GoMP.Studio.Maps;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
+// --web <folder>: the pages straight from tools/studio/web (while working on them);
+// else the copy built into the program.
+int webArg = Array.IndexOf(args, "--web");
+string webDir = webArg >= 0 && webArg + 1 < args.Length ? Path.GetFullPath(args[webArg + 1]) : null;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
     ContentRootPath = AppContext.BaseDirectory,
-    WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot"),
 });
 builder.Configuration.AddCommandLine(args.Select(a => a == "--no-browser" ? "--no-browser=1" : a).ToArray(), StudioOptions.Switches);
 // Only the port is needed before the app is built; the folders are read from the final
@@ -27,16 +31,23 @@ builder.Services.AddSingleton<EventHub>();
 builder.Services.AddSingleton(sp => new GameData(sp.GetRequiredService<StudioOptions>().GtaDir));
 builder.Services.AddSingleton(sp => new MapStore(sp.GetRequiredService<StudioOptions>().MapsDir));
 builder.Services.AddSingleton<MapWatcher>();
+builder.Services.AddSingleton(sp => new GoMP.Studio.Export.ModelCache(sp.GetRequiredService<StudioOptions>().CacheDir));
 
 var app = builder.Build();
-app.UseDefaultFiles();
-app.UseStaticFiles();
+IFileProvider web = webDir != null ? new PhysicalFileProvider(webDir) : new EmbeddedWeb(typeof(Program).Assembly);
+app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = web });
+// Revalidated on every load: after an update the browser must not run old modules.
+app.UseStaticFiles(new StaticFileOptions { FileProvider = web, OnPrepareResponse = c => c.Context.Response.Headers.CacheControl = "no-cache" });
 Api.Map(app);
 
 var options = app.Services.GetRequiredService<StudioOptions>();
 var hub = app.Services.GetRequiredService<EventHub>();
 var game = app.Services.GetRequiredService<GameData>();
-game.Changed += (state, status) => hub.Publish("gta", new { state = state.ToString().ToLowerInvariant(), status });
+game.Changed += (state, status) =>
+{
+    hub.Publish("gta", new { state = state.ToString().ToLowerInvariant(), status });
+    if (state == GameState.Failed) Console.Error.WriteLine(game.Error?.ToString() ?? status);
+};
 app.Services.GetRequiredService<MapWatcher>();
 
 app.Lifetime.ApplicationStarted.Register(() =>
