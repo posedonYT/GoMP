@@ -68,6 +68,16 @@ func Encode(w *Writer, m Message) error {
 	return m.encode(w)
 }
 
+// MarshalAppend encodes m into dst[:0], reusing its storage (hot paths encode
+// the same kind of message every tick).
+func MarshalAppend(dst []byte, m Message) ([]byte, error) {
+	w := NewWriter(dst[:0])
+	if err := Encode(w, m); err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+}
+
 // Marshal encodes m into a new byte slice.
 func Marshal(m Message) ([]byte, error) {
 	w := NewWriter(make([]byte, 0, 64))

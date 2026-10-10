@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The C# side of the RAGE.MP compatibility tools (tools/compat/README.md):
+       the GTANetworkAPI surface of an assembly and what a mod's assemblies use. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>gomp-compat</AssemblyName>
+    <RootNamespace>GoMP.Compat</RootNamespace>
+  </PropertyGroup>
+</Project>

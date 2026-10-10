@@ -150,6 +150,35 @@ bool GameClient::handleUiEvent(const ScriptEvent& e) {
         }
         return true;
     }
+    if (e.name == "gomp:spawn:show") {
+        // After choosing a character: where to appear. Options: {id, title, sub, pos}.
+        uiBusy_ = false;
+        uiError_.clear();
+        spawnOptions_.clear();
+        if (!a.empty() && a[0].kind == Value::Kind::Array) {
+            for (const auto& o : a[0].arr) {
+                SpawnOption so;
+                so.id = props::fieldStr(o, "id");
+                so.title = props::fieldStr(o, "title");
+                so.sub = props::fieldStr(o, "sub");
+                if (const Value* p = field(o, "pos"); p && p->kind == Value::Kind::Array && p->arr.size() >= 3) {
+                    so.hasPos = true;
+                    so.pos = {static_cast<float>(props::at(*p, 0)), static_cast<float>(props::at(*p, 1)), static_cast<float>(props::at(*p, 2))};
+                }
+                if (so.id == "last" && so.hasPos) {
+                    // The street the character left on, when the game knows it.
+                    Hash street = 0, crossing = 0;
+                    PATH::GET_STREET_NAME_AT_COORD(so.pos.x, so.pos.y, so.pos.z, &street, &crossing);
+                    const char* name = street ? HUD::GET_STREET_NAME_FROM_HASH_KEY(street) : nullptr;
+                    if (name && *name) so.sub = name;
+                }
+                spawnOptions_.push_back(std::move(so));
+            }
+        }
+        if (spawnOptions_.empty()) spawnOptions_.push_back({"last", "Там, где вышел", "", {}, false});
+        openScreen(Screen::Spawn);
+        return true;
+    }
     if (e.name == "gomp:creator:error") {
         uiBusy_ = false;
         uiError_ = a.empty() ? "Ошибка" : a[0].s;
@@ -165,6 +194,15 @@ bool GameClient::handleUiEvent(const ScriptEvent& e) {
     }
     if (e.name == "gomp:inv:sync") {
         if (!a.empty()) onInventorySync(a[0]);
+        return true;
+    }
+    if (e.name == "gomp:inv:open") {  // a storage opened (orgs.js): the inventory window shows it
+        if (screen_ != Screen::Inventory) {
+            if (screen_ != Screen::None) closeScreens();
+            invSelected_ = invPress_ = {};
+            invDragging_ = false;
+            openScreen(Screen::Inventory);
+        }
         return true;
     }
     if (e.name == "gomp:hud:online") {
@@ -206,6 +244,20 @@ void GameClient::openScreen(Screen s) {
 void GameClient::closeScreens() {
     if (screen_ == Screen::Tuning) endTuning();
     if (screen_ == Screen::Phone) closePhone();
+    if (screen_ == Screen::Dealer) closeDealer();
+    // A storage open next to the inventory closes with it.
+    if (screen_ == Screen::Inventory && !storage_.empty()) {
+        storage_.clear();
+        if (invSelected_.container == 3) invSelected_ = {};
+        send(ScriptEvent{"gomp:inv:close", {}});
+    }
+    // A question closed without an answer (Esc).
+    if (screen_ == Screen::Choice && choiceCancel_) {
+        auto cancel = std::move(choiceCancel_);
+        choiceCancel_ = nullptr;
+        screen_ = Screen::None;
+        cancel();
+    }
     screen_ = Screen::None;
     screenActive_ = false;
     focus_ = nullptr;
@@ -349,6 +401,8 @@ void GameClient::tickScreens() {
             if (submit) submitLogin();
             break;
         case Screen::Characters: drawCharacters(); break;
+        case Screen::Spawn: drawSpawn(); break;
+        case Screen::Choice: drawChoice(); break;
         case Screen::Creator:
             applyCreatorPreview();
             drawCreator();
@@ -363,6 +417,7 @@ void GameClient::tickScreens() {
         case Screen::Tuning: drawTuning(); break;
         case Screen::House: drawHouse(); break;
         case Screen::Phone: drawPhone(submit); break;
+        case Screen::Dealer: drawDealer(); break;
         default: break;
     }
     focusOrder_ = focusDrawn_;
@@ -445,6 +500,71 @@ void GameClient::drawCharacters() {
                 openScreen(Screen::Creator);
             }
         }
+    }
+}
+
+// ------------------------------------------------------------------ spawn place
+
+void GameClient::drawSpawn() {
+    // The same cards as the character screen: where to appear.
+    const int n = std::max(1, static_cast<int>(spawnOptions_.size()));
+    const float cw = 0.2f, ch = 0.15f, gap = 0.014f, total = n * cw + (n - 1) * gap;
+    const float y = 0.72f;
+    label("ГДЕ ПОЯВИТЬСЯ", 0.5f, y - 0.06f, 0.5f, theme::Text, Align::Center);
+    for (int i = 0; i < static_cast<int>(spawnOptions_.size()); ++i) {
+        const SpawnOption& o = spawnOptions_[i];
+        const float x = 0.5f - total / 2 + i * (cw + gap);
+        panel(x, y, cw, ch);
+        label(o.title, x + 0.01f, y + 0.016f, 0.5f, theme::Text);
+        if (!o.sub.empty()) {
+            std::string sub = o.sub;
+            while (sub.size() > 1 && textWidth(sub, 0.3f) > cw - 0.02f) {
+                sub.pop_back();
+                while (sub.size() > 1 && !isLeadByte(static_cast<unsigned char>(sub.back()))) sub.pop_back();
+            }
+            label(sub, x + 0.01f, y + 0.058f, 0.3f, theme::Muted);
+        }
+        if (uiButton(x + 0.01f, y + ch - 0.048f, cw - 0.02f, 0.038f, "Появиться", true, !uiBusy_ && houseFade_ == 0)) {
+            if (o.id == "house") {
+                // The fade hides the move into the house and the wait for its interior.
+                startHouseFade(ScriptEvent{"gomp:spawn:choose", {Value::string("house")}}, 0);
+            } else {
+                uiBusy_ = true;
+                send(ScriptEvent{"gomp:spawn:choose", {Value::string("last")}});
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ choice menu
+
+void GameClient::openChoice(const std::string& title, std::vector<ChoiceOption> options, std::string text, std::function<void()> onCancel) {
+    choiceTitle_ = title;
+    choiceText_ = std::move(text);
+    choice_ = std::move(options);
+    choiceCancel_ = std::move(onCancel);
+    openScreen(Screen::Choice);
+}
+
+void GameClient::drawChoice() {
+    const float textH = choiceText_.empty() ? 0.0f : 0.034f;
+    const float w = std::max(0.24f, textWidth(choiceText_, 0.3f) + 0.05f), bh = 0.044f, gap = 0.008f, pad = 0.018f;
+    const float h = 0.088f + textH + choice_.size() * (bh + gap) + 0.006f;
+    const float x = 0.5f - w / 2, y = 0.5f - h / 2;
+    panel(x, y, w, h);
+    label(choiceTitle_, x + pad, y + 0.014f, 0.46f, theme::Text);
+    if (!choiceText_.empty()) label(choiceText_, x + pad, y + 0.052f, 0.3f, theme::Text);
+    label("Esc — отмена", x + pad, y + 0.05f + textH, 0.26f, theme::Muted);
+    float by = y + 0.088f + textH;
+    for (std::size_t i = 0; i < choice_.size(); ++i) {
+        if (uiButton(x + pad, by, w - 2 * pad, bh, choice_[i].title, i == 0)) {
+            auto action = choice_[i].action;
+            choiceCancel_ = nullptr;  // answered
+            closeScreens();
+            if (action) action();
+            return;
+        }
+        by += bh + gap;
     }
 }
 

@@ -12,9 +12,15 @@ const os = require('os');
 const path = require('path');
 const { joaat } = require('../../../../runtimes/node/lib/joaat');
 
-// The account database and the maps go to fresh temporary folders.
+// The account database, the maps and the houses go to fresh temporary folders.
 process.env.GOMP_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'gomp-test-'));
+// Passwords hashed synchronously: login handlers finish within emit() (the
+// server hashes off the thread; test/store.test.js checks that path).
+process.env.GOMP_SYNC_HASH = '1';
 process.env.GOMP_MAPS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'gomp-maps-'));
+// A copy of the real houses file: the tests change the copy, never the real one.
+process.env.GOMP_HOUSES_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gomp-houses-')), 'houses.json');
+fs.copyFileSync(path.join(__dirname, '..', '..', '..', 'houses.json'), process.env.GOMP_HOUSES_FILE);
 
 // Intervals are collected (and never keep the test process alive); tick() runs them.
 const intervals = [];
@@ -133,7 +139,7 @@ class Vehicle extends Entity {
     Object.assign(this, { model, position: pos, heading: opts.heading || 0, dimension: opts.dimension || 0,
       engine: !!opts.engine, locked: !!opts.locked, dead: false, bodyHealth: 1000, engineHealth: 1000,
       numberPlate: opts.numberPlate || '', pearlescentColor: 0, wheelColor: 0, wheelType: 0, windowTint: 0,
-      numberPlateType: 0, livery: 0, neonEnabled: false });
+      numberPlateType: 0, livery: 0, neonEnabled: false, movable: true });
     this._mods = {};
     this._colors = [0, 0];
     this._neon = [255, 255, 255];
@@ -147,6 +153,7 @@ class Vehicle extends Entity {
   getNeonColor() { return [...this._neon]; }
   repair() { Object.assign(this, { bodyHealth: 1000, engineHealth: 1000, dead: false }); this.repaired = (this.repaired || 0) + 1; }
   getOccupant(seat) { return players.toArray().find((p) => p.vehicle === this && p.seat === seat); }
+  getOccupants() { return players.toArray().filter((p) => p.vehicle === this); }
 }
 
 class SimpleEntity extends Entity {

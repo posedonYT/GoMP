@@ -39,12 +39,36 @@ export class Garage {
     this.loader = new GLTFLoader();
     this.model = null;
     this.open = new Set();
+    this.buffers = new Map();  // "pack/model/tex" -> Promise<ArrayBuffer>, fetched ahead
+  }
+
+  // Starts fetching a vehicle's model (the pointer is over its row): by the time it is
+  // opened the file is here. A few are kept, the oldest are forgotten.
+  prefetch(pack, model, tex = 1024) {
+    const key = `${pack}/${model}/${tex}`;
+    if (!this.buffers.has(key)) {
+      const p = this.fetchModel(pack, model, tex);
+      p.catch(() => this.buffers.delete(key));
+      this.buffers.set(key, p);
+      if (this.buffers.size > 6) this.buffers.delete(this.buffers.keys().next().value);
+    }
+    return this.buffers.get(key);
+  }
+
+  async fetchModel(pack, model, tex) {
+    const res = await fetch(`/api/vehicles/${encodeURIComponent(pack)}/${encodeURIComponent(model)}/model.glb?tex=${tex}`, { priority: 'high' });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    return res.arrayBuffer();
+  }
+
+  // A saved vehicle has a new file: what was fetched ahead is stale.
+  forget(pack, model) {
+    for (const key of [...this.buffers.keys()]) if (key.startsWith(`${pack}/${model}/`)) this.buffers.delete(key);
   }
 
   async load(pack, model, tex = 1024) {
-    const res = await fetch(`/api/vehicles/${encodeURIComponent(pack)}/${encodeURIComponent(model)}/model.glb?tex=${tex}`);
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
-    const gltf = await this.loader.parseAsync(await res.arrayBuffer(), '');
+    // A copy: parsing hands the buffer to the loader.
+    const gltf = await this.loader.parseAsync((await this.prefetch(pack, model, tex)).slice(0), '');
     if (this.model) this.scene.remove(this.model);
     this.model = gltf.scene;
     // Standing on the floor: the lowest point at z = 0.
@@ -84,7 +108,7 @@ export class Garage {
       this.tried.delete(type);
       if (cur.name === mod.modelName) return false;
     }
-    const res = await fetch(`/api/vehicles/${encodeURIComponent(pack)}/${encodeURIComponent(model)}/part/${encodeURIComponent(mod.modelName)}.glb`);
+    const res = await fetch(`/api/vehicles/${encodeURIComponent(pack)}/${encodeURIComponent(model)}/part/${encodeURIComponent(mod.modelName)}.glb`, { priority: 'high' });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
     const gltf = await this.loader.parseAsync(await res.arrayBuffer(), '');
     const hidden = [];

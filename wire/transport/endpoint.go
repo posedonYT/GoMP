@@ -37,16 +37,19 @@ const (
 	// DefaultMaxMessageSize bounds reassembled reliable messages.
 	DefaultMaxMessageSize = 1 << 20
 
-	window        = 1024 // reliable message window and sent-packet history
-	maxAckBits    = 32
-	chunkUnrel    = 0
-	chunkRel      = 1
-	chunkMore     = 0x80 // reliable fragment: more fragments follow
-	minRTO        = 40 * time.Millisecond
-	maxRTO        = time.Second
-	initialRTT    = 100 * time.Millisecond
-	maxUnrelQ     = 8192
-	maxRelBacklog = 64 << 20
+	window     = 1024 // reliable message window and sent-packet history
+	maxAckBits = 32
+	chunkUnrel = 0
+	chunkRel   = 1
+	chunkMore  = 0x80 // reliable fragment: more fragments follow
+	minRTO     = 40 * time.Millisecond
+	maxRTO     = time.Second
+	initialRTT = 100 * time.Millisecond
+	maxUnrelQ  = 8192
+	// DefaultMaxRelBacklog bounds reliable bytes waiting for one peer. A peer
+	// that does not take its data (a stalled client) is cut off instead of
+	// growing the server's memory: 1000 such peers at the old 64 MiB were 64 GB.
+	DefaultMaxRelBacklog = 4 << 20
 )
 
 var (
@@ -108,13 +111,14 @@ type Stats struct {
 // endpoint is the I/O-free reliability state machine shared by client and server.
 type endpoint struct {
 	// send side
-	seq       uint16
-	sent      [window]sentPacket
-	relNext   uint16 // next reliable seq to assign
-	relOldest uint16 // oldest unacknowledged reliable seq
-	relBuf    [window]relOut
-	relQueue  []relOut // waiting for window space
-	relBytes  int
+	seq        uint16
+	sent       [window]sentPacket
+	relNext    uint16 // next reliable seq to assign
+	relOldest  uint16 // oldest unacknowledged reliable seq
+	relBuf     [window]relOut
+	relQueue   []relOut // waiting for window space
+	relBytes   int
+	maxBacklog int
 	// Unreliable messages are packed into one arena to avoid an allocation
 	// per message; unrelMsgs holds [start, end) offsets into unrelBuf.
 	unrelBuf  []byte
@@ -152,6 +156,7 @@ func newEndpoint(now time.Time) *endpoint {
 		rto:        3 * initialRTT,
 		lastRecv:   now,
 		maxMsgSize: DefaultMaxMessageSize,
+		maxBacklog: DefaultMaxRelBacklog,
 	}
 }
 
@@ -176,7 +181,7 @@ func (e *endpoint) queue(ch Channel, data []byte) error {
 	if len(data) > e.maxMsgSize {
 		return errMessageTooBig
 	}
-	if e.relBytes+len(data) > maxRelBacklog {
+	if e.relBytes+len(data) > e.maxBacklog {
 		e.err = errBacklog
 		return e.err
 	}

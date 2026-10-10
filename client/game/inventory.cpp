@@ -15,7 +15,7 @@ using namespace ui;
 
 namespace {
 
-const char* const kContainers[] = {"pockets", "hotbar", "equip"};
+const char* const kContainers[] = {"pockets", "hotbar", "equip", "storage"};
 const char* const kEquipNames[] = {"Верх", "Низ", "Обувь"};
 constexpr int kTextureInstances = 64;  // ScriptHookV limit per texture and frame
 
@@ -77,14 +77,34 @@ void GameClient::onInventorySync(const Value& inv) {
     fill("pockets", pockets_);
     fill("hotbar", hotbar_);
     fill("equip", equip_);
+    // An open storage (an organization's warehouse): its slots next to the pockets.
+    if (const Value* st = inv.get("storage"); st && st->kind == Value::Kind::Map) {
+        const Value* slots = st->get("slots");
+        storage_.assign(slots && slots->kind == Value::Kind::Array ? slots->arr.size() : 0, Slot{});
+        if (slots && slots->kind == Value::Kind::Array)
+            for (std::size_t i = 0; i < storage_.size(); ++i)
+                if (slots->arr[i].kind == Value::Kind::Map) {
+                    storage_[i].key = props::fieldStr(slots->arr[i], "key");
+                    storage_[i].label = props::fieldStr(slots->arr[i], "label");
+                    storage_[i].count = static_cast<int>(props::fieldInt(slots->arr[i], "count"));
+                    storage_[i].uid = props::fieldInt(slots->arr[i], "uid");
+                }
+        storageTitle_ = props::fieldStr(*st, "title");
+        storageTake_ = props::field(*st, "take") && props::field(*st, "take")->asNumber() != 0;
+        storagePut_ = props::field(*st, "put") && props::field(*st, "put")->asNumber() != 0;
+    } else {
+        storage_.clear();
+    }
     heldSlot_ = static_cast<int>(props::fieldInt(inv, "held"));
-    if (invSelected_.valid() && slotAt(invSelected_)->empty()) invSelected_ = {};
+    const bool goneStorage = invSelected_.container == 3 && invSelected_.index >= static_cast<int>(storage_.size());
+    if (invSelected_.valid() && (goneStorage || slotAt(invSelected_)->empty())) invSelected_ = {};
 }
 
 GameClient::Slot* GameClient::slotAt(InvRef r) {
     switch (r.container) {
         case 0: return &pockets_[r.index];
         case 1: return &hotbar_[r.index];
+        case 3: return &storage_[r.index];
         default: return &equip_[r.index];
     }
 }
@@ -148,8 +168,14 @@ void GameClient::drawInventory() {
     const float side = 0.2f, W = side + 0.03f + gridW + 0.03f;
     const float hotCw = (gridW - 8 * gap) / 9, hotCh = hotCw * aspect;
     const float H = 0.07f + gridH + 0.05f + hotCh + 0.03f;
-    const float X = 0.5f - W / 2, Y = 0.5f - H / 2;
+    // An open storage stands to the right: 10 columns of smaller cells.
+    const bool storageOpen = !storage_.empty();
+    const int scols = 10;
+    const float scw = 0.028f, sch = scw * aspect, SW = storageOpen ? 0.032f + scols * scw + (scols - 1) * gap : 0.0f;
+    const float X = 0.5f - (W + (storageOpen ? 0.01f + SW : 0.0f)) / 2, Y = 0.5f - H / 2;
+    const float SX = X + W + 0.01f;
     invHover_ = {};
+    if (!storageOpen && invPress_.container == 3) invPress_ = {};
 
     panel(X, Y, W, H);
     // Header.
@@ -191,25 +217,30 @@ void GameClient::drawInventory() {
         const float bx = lx + 0.01f, bw = side - 0.02f, bh = 0.034f;
         float by = iy + ih - 3 * (bh + 0.006f) - 0.004f;
         const char* cont = kContainers[invSelected_.container];
-        if (uiButton(bx, by, bw, bh, d.type == "weapon" ? "Взять в руки (быстрый слот)" : "Использовать", true))
-            send(ScriptEvent{"gomp:inv:use", {Value::string(cont), Value::integer(invSelected_.index)}});
-        by += bh + 0.006f;
-        if (uiButton(bx, by, bw, bh, "Разделить пополам", false, d.stack > 1 && s.count > 1)) {
-            for (int i = 0; i < static_cast<int>(pockets_.size()); ++i)
-                if (pockets_[i].empty()) {
-                    send(ScriptEvent{"gomp:inv:move", {Value::string(cont), Value::integer(invSelected_.index), Value::string("pockets"),
-                                                       Value::integer(i), Value::integer(s.count / 2)}});
-                    break;
+        if (invSelected_.container == 3) {
+            // In the storage: dragged into the pockets to take it.
+            label(storageTake_ ? "Перетащите в карманы, чтобы взять" : "Брать со склада: нет доступа", lx + 0.01f, iy + ih - 0.04f, 0.27f, theme::Muted);
+        } else {
+            if (uiButton(bx, by, bw, bh, d.type == "weapon" ? "Взять в руки (быстрый слот)" : "Использовать", true))
+                send(ScriptEvent{"gomp:inv:use", {Value::string(cont), Value::integer(invSelected_.index)}});
+            by += bh + 0.006f;
+            if (uiButton(bx, by, bw, bh, "Разделить пополам", false, d.stack > 1 && s.count > 1)) {
+                for (int i = 0; i < static_cast<int>(pockets_.size()); ++i)
+                    if (pockets_[i].empty()) {
+                        send(ScriptEvent{"gomp:inv:move", {Value::string(cont), Value::integer(invSelected_.index), Value::string("pockets"),
+                                                           Value::integer(i), Value::integer(s.count / 2)}});
+                        break;
+                    }
+            }
+            by += bh + 0.006f;
+            const bool confirm = GetTickCount() - dropConfirmAt_ < 3000;
+            if (uiButton(bx, by, bw, bh, confirm ? "Точно выбросить?" : "Выбросить")) {
+                if (confirm) {
+                    send(ScriptEvent{"gomp:inv:drop", {Value::string(cont), Value::integer(invSelected_.index)}});
+                    dropConfirmAt_ = 0;
+                } else {
+                    dropConfirmAt_ = GetTickCount();
                 }
-        }
-        by += bh + 0.006f;
-        const bool confirm = GetTickCount() - dropConfirmAt_ < 3000;
-        if (uiButton(bx, by, bw, bh, confirm ? "Точно выбросить?" : "Выбросить")) {
-            if (confirm) {
-                send(ScriptEvent{"gomp:inv:drop", {Value::string(cont), Value::integer(invSelected_.index)}});
-                dropConfirmAt_ = 0;
-            } else {
-                dropConfirmAt_ = GetTickCount();
             }
         }
     } else {
@@ -233,6 +264,20 @@ void GameClient::drawInventory() {
         drawSlot({1, i}, gx + i * (hotCw + gap), hy, hotCw, hotCh, num.c_str());
     }
 
+    // The storage.
+    if (storageOpen) {
+        const float SH = H;
+        panel(SX, Y, SW, SH);
+        label(storageTitle_.empty() ? "СКЛАД" : storageTitle_, SX + 0.016f, Y + 0.014f, 0.44f, theme::Text);
+        int sused = 0;
+        for (const auto& s : storage_) sused += !s.empty();
+        label(std::string("Брать: ") + (storageTake_ ? "да" : "нет") + "  ·  класть: " + (storagePut_ ? "да" : "нет") + "  ·  " +
+                  std::to_string(sused) + " / " + std::to_string(storage_.size()),
+              SX + 0.016f, Y + 0.048f, 0.27f, theme::Muted);
+        for (int i = 0; i < static_cast<int>(storage_.size()); ++i)
+            drawSlot({3, i}, SX + 0.016f + (i % scols) * (scw + gap), Y + 0.08f + (i / scols) * (sch + gapY), scw, sch, nullptr);
+    }
+
     // Mouse: click selects, drag moves (Shift = half the stack, Ctrl = one item).
     const bool down = PAD::IS_DISABLED_CONTROL_PRESSED(2, 237);
     if (mouseClick_ && invHover_.valid() && !slotAt(invHover_)->empty()) {
@@ -249,8 +294,10 @@ void GameClient::drawInventory() {
         if (def != itemDefs_.end()) drawIcon(def->second.icon, mouseX_ - cw * 0.4f, mouseY_ - ch * 0.4f, cw * 0.8f, ch * 0.8f, tintOf(def->second.type), 10);
     }
     if (invPress_.valid() && !down) {
-        const bool outside = !Rect{X, Y, W, H}.contains(mouseX_, mouseY_);
-        if (invDragging_ && outside) {
+        const bool outside = !Rect{X, Y, W, H}.contains(mouseX_, mouseY_) && !(storageOpen && Rect{SX, Y, SW, H}.contains(mouseX_, mouseY_));
+        if (invDragging_ && outside && invPress_.container == 3) {
+            // Nothing is thrown away straight from the storage.
+        } else if (invDragging_ && outside) {
             // Dragged out of the window: thrown on the ground (Shift: half, Ctrl: one).
             const Slot& s = *slotAt(invPress_);
             int count = s.count;

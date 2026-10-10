@@ -69,6 +69,8 @@ type GoMP struct {
 	AdminBind           string  `gomp:"admin-bind"`
 	NodePath            string  `gomp:"node-path"`
 	NodeArgs            string  `gomp:"node-args"`
+	DotnetPath          string  `gomp:"dotnet-path"` // the .NET host (csharp: "enabled")
+	DotnetHost          string  `gomp:"dotnet-host"` // GoMP.Host.dll (default: runtimes/dotnet/host)
 	HostRestart         bool    `gomp:"host-restart"`
 	HostWatchdogMs      int     `gomp:"host-watchdog-ms"`
 	HostScript          string  `gomp:"host-script"`
@@ -76,6 +78,12 @@ type GoMP struct {
 	ClientPackagesDir   string  `gomp:"client-packages-dir"`
 	WeaponsFile         string  `gomp:"weapons-file"`
 	LogLevel            string  `gomp:"log-level"`
+
+	// Load protection
+	MaxReliableBacklog int `gomp:"max-reliable-backlog"`   // bytes of reliable data waiting for one player; more: disconnected
+	MaxPacketsPerSec   int `gomp:"max-packets-per-second"` // datagrams from one address, dropped before decryption beyond it
+	HostOpsPerTick     int `gomp:"host-ops-per-tick"`      // script host commands run per tick; the rest wait for the next one
+	HostMirrorRate     int `gomp:"host-mirror-rate"`       // positions sent to the script host per second
 
 	// Combat
 	HeadshotMultiplier float64 `gomp:"headshot-multiplier"`
@@ -120,11 +128,16 @@ func Default() Config {
 			SpawnY:              1123.620,
 			SpawnZ:              325.8544,
 			NodePath:            "node",
+			DotnetPath:          "dotnet",
 			HostRestart:         true,
 			HostWatchdogMs:      10000,
 			PackagesDir:         "packages",
 			ClientPackagesDir:   "client_packages",
 			LogLevel:            "info",
+			MaxReliableBacklog:  4 << 20,
+			MaxPacketsPerSec:    1000,
+			HostOpsPerTick:      20000,
+			HostMirrorRate:      10,
 			HeadshotMultiplier:  2.0,
 			LimbMultiplier:      0.75,
 			AnticheatEnabled:    true,
@@ -193,8 +206,29 @@ func Parse(data []byte) (Config, error) {
 var unsupported = map[string]string{
 	"announce":            "GoMP has no public master list; ignored",
 	"voice-chat":          "voice chat is not implemented yet",
-	"csharp":              "the C# host arrives in phase 3",
 	"allow-cef-debugging": "CEF arrives in phase 2",
+}
+
+// scriptKeys are settings of the gamemode, not of the core: kept in mp.config
+// without a warning (storage: where the gamemode keeps accounts, file or redis).
+var scriptKeys = map[string]bool{"storage": true}
+
+// rageKeys are settings of RAGE.MP's server that GoMP has no use for (yet): a RAGE
+// server's conf.json works unchanged, the values stay in mp.config.
+var rageKeys = map[string]bool{
+	"voice-chat-sample-rate": true, "resource-scan-thread-limit": true, "fqdn": true, "node-commandline-flags": true,
+	"api-threading-debugging": true, "enable-http-security": true, "server-side-weapons-only-mode": true,
+	"create-fastdl-snapshot": true, "fastdl-host": true, "allow-voice-chat-input": true, "synchronization-settings": true,
+	"trust-client-entity-properties": true, "enable-synchronization-extrapolation": true,
+}
+
+// Enabled reads the RAGE way of switching something on: "enabled", "true", true.
+func Enabled(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "enabled", "true", "1", "yes", "on":
+		return true
+	}
+	return false
 }
 
 func applyRage(c *Config, raw map[string]any) error {
@@ -205,7 +239,7 @@ func applyRage(c *Config, raw map[string]any) error {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		if k == "gomp" {
+		if k == "gomp" || scriptKeys[k] || rageKeys[k] {
 			continue
 		}
 		f, ok := fields[k]
@@ -272,6 +306,8 @@ func applyGoMP(g *GoMP, raw map[string]any, warnings *[]string) error {
 		"admin-bind":                     strSetter(&g.AdminBind),
 		"node-path":                      strSetter(&g.NodePath),
 		"node-args":                      strSetter(&g.NodeArgs),
+		"dotnet-path":                    strSetter(&g.DotnetPath),
+		"dotnet-host":                    strSetter(&g.DotnetHost),
 		"host-restart":                   boolSetter(&g.HostRestart),
 		"host-watchdog-ms":               intSetter(&g.HostWatchdogMs),
 		"host-script":                    strSetter(&g.HostScript),
@@ -279,6 +315,10 @@ func applyGoMP(g *GoMP, raw map[string]any, warnings *[]string) error {
 		"client-packages-dir":            strSetter(&g.ClientPackagesDir),
 		"weapons-file":                   strSetter(&g.WeaponsFile),
 		"log-level":                      strSetter(&g.LogLevel),
+		"max-reliable-backlog":           intSetter(&g.MaxReliableBacklog),
+		"max-packets-per-second":         intSetter(&g.MaxPacketsPerSec),
+		"host-ops-per-tick":              intSetter(&g.HostOpsPerTick),
+		"host-mirror-rate":               intSetter(&g.HostMirrorRate),
 		"headshot-multiplier":            floatSetter(&g.HeadshotMultiplier),
 		"limb-multiplier":                floatSetter(&g.LimbMultiplier),
 		"anticheat":                      boolSetter(&g.AnticheatEnabled),
@@ -326,6 +366,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("gomp.max-streamed-* must be positive")
 	case c.GoMP.SpeedTolerance < 1:
 		return fmt.Errorf("gomp.speed-tolerance must be >= 1")
+	case c.GoMP.MaxReliableBacklog < 256<<10:
+		return fmt.Errorf("gomp.max-reliable-backlog must be >= 262144, got %d", c.GoMP.MaxReliableBacklog)
+	case c.GoMP.MaxPacketsPerSec < 100:
+		return fmt.Errorf("gomp.max-packets-per-second must be >= 100, got %d", c.GoMP.MaxPacketsPerSec)
+	case c.GoMP.HostOpsPerTick < 100:
+		return fmt.Errorf("gomp.host-ops-per-tick must be >= 100, got %d", c.GoMP.HostOpsPerTick)
+	case c.GoMP.HostMirrorRate < 1 || c.GoMP.HostMirrorRate > c.GoMP.TickRate:
+		return fmt.Errorf("gomp.host-mirror-rate must be in 1..tick-rate, got %d", c.GoMP.HostMirrorRate)
 	}
 	return nil
 }

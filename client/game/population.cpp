@@ -31,6 +31,10 @@ bool keepScript(const std::string& name) {
 constexpr int kInputPhone = 27;
 constexpr int kInputFrontendPause = 199, kInputFrontendPauseAlternate = 200;
 constexpr int kMaxBlipSprite = 900;
+// Blip sprites looked through per frame: a round of all of them takes 15 frames once a
+// second instead of 1800 natives in one frame.
+constexpr int kBlipSpritesPerFrame = 60;
+constexpr int kWaypointSprite = 8;
 // HUD components: 1 wanted stars, 2 weapon icon, 3 cash, 4 MP cash, 5 MP message, 6 vehicle name,
 // 7 area name, 8 vehicle class, 9 street name, 10 help text, 11-12 floating help, 13 cash change,
 // 15 subtitles, 17 saving, 18 game stream, 20 weapon wheel stats, 21 HUD components, 22 HUD weapons.
@@ -93,7 +97,9 @@ void GameClient::suppressPopulation() {
     if (now - lastScriptKill_ > std::chrono::seconds(1)) {
         lastScriptKill_ = now;
         killStoryScripts();
+        blipRound_ = true;
     }
+    if (blipRound_) removeForeignBlips();
     // The player model is applied once it has streamed in.
     if (pendingSelfModel_ && ensureModel(pendingSelfModel_)) {
         PLAYER::SET_PLAYER_MODEL(player, pendingSelfModel_);
@@ -128,17 +134,17 @@ void GameClient::handlePauseMenu() {
 
 void GameClient::killStoryScripts() {
     const int self = SCRIPT::GET_ID_OF_THIS_THREAD();
-    for (auto& [id, name] : runningScripts()) {
+    const auto scripts = runningScripts();
+    for (auto& [id, name] : scripts) {
         if (id == self || keepScript(name)) continue;
         SCRIPT::TERMINATE_THREAD(id);
         if (terminatedScripts_.insert(name).second) log("terminated story script: " + name);
     }
-    logScripts();
+    logScripts(scripts);
     // Whatever the story scripts left behind: phone, conversations, map blips.
     restorePlayerState();
     GTA::DESTROY_MOBILE_PHONE();
     if (AUDIO::IS_SCRIPTED_CONVERSATION_ONGOING()) AUDIO::STOP_SCRIPTED_CONVERSATION(false);
-    removeForeignBlips();
 }
 
 // Story scenes (player_timetable_scene, startup_positioning, cutscenes...) take the
@@ -166,20 +172,29 @@ void GameClient::restorePlayerState() {
     HUD::DISPLAY_RADAR(true);
 }
 
-// Removes map blips that GoMP did not create (shops, story missions, safehouses...).
+// Removes map blips that GoMP did not create (shops, story missions, safehouses...),
+// a slice of the blip sprites per frame (see kBlipSpritesPerFrame).
 void GameClient::removeForeignBlips() {
+    blipSweep_.total = kMaxBlipSprite;
+    const auto [from, to] = blipSweep_.next(kBlipSpritesPerFrame);
+    if (to >= kMaxBlipSprite) blipRound_ = false;
+    std::vector<Blip> found;
+    for (int sprite = from; sprite < to; ++sprite)
+        if (sprite != kWaypointSprite)  // the player's own waypoint stays
+        for (Blip b = HUD::GET_FIRST_BLIP_INFO_ID(sprite); HUD::DOES_BLIP_EXIST(b); b = HUD::GET_NEXT_BLIP_INFO_ID(sprite))
+            found.push_back(b);
+    if (found.empty()) return;
     std::unordered_set<int> ours{HUD::GET_MAIN_PLAYER_BLIP_ID()};
     for (auto& [id, r] : players_)
         if (r.blip) ours.insert(r.blip);
     for (auto& [k, e] : world_)
         if (e.type == gomp::EntityType::Blip && e.handle) ours.insert(e.handle);
-    for (const House& h : houses_)
+    for (const House& h : houses_) {
         if (h.blip) ours.insert(h.blip);
-    std::vector<Blip> foreign;
-    for (int sprite = 0; sprite < kMaxBlipSprite; ++sprite)
-        for (Blip b = HUD::GET_FIRST_BLIP_INFO_ID(sprite); HUD::DOES_BLIP_EXIST(b); b = HUD::GET_NEXT_BLIP_INFO_ID(sprite))
-            if (!ours.count(b)) foreign.push_back(b);
-    for (Blip b : foreign) HUD::REMOVE_BLIP(&b);
+        if (h.garageBlip) ours.insert(h.garageBlip);
+    }
+    for (Blip b : found)
+        if (!ours.count(b)) HUD::REMOVE_BLIP(&b);
 }
 
 std::vector<std::pair<int, std::string>> GameClient::runningScripts() const {
@@ -193,14 +208,14 @@ std::vector<std::pair<int, std::string>> GameClient::runningScripts() const {
 }
 
 // Logs game scripts as they start and stop (used to tune the story-mode cleanup).
-void GameClient::logScripts() {
+void GameClient::logScripts(const std::vector<std::pair<int, std::string>>& scripts) {
     if (knownScripts_.empty()) {
         int self = SCRIPT::GET_ID_OF_THIS_THREAD();
         const char* name = SCRIPT::GET_NAME_OF_SCRIPT_WITH_THIS_ID(self);
         log("own script thread: id " + std::to_string(self) + " name \"" + (name ? name : "") + "\"");
     }
     std::set<std::string> now;
-    for (auto& [id, name] : runningScripts()) now.insert(name);
+    for (auto& [id, name] : scripts) now.insert(name);
     for (auto& n : now)
         if (!knownScripts_.count(n)) log("script running: " + n);
     for (auto& n : knownScripts_)

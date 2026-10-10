@@ -20,7 +20,9 @@ type client struct {
 	info   proto.ConnectInfo
 	stream *streaming.Set
 	mover  anticheat.Mover
-	shots  combat.History
+	// acExempt: the movement checks are off for this player (player.anticheat = false).
+	acExempt bool
+	shots    combat.History
 
 	// Pending stream changes computed in the parallel phase, plus scratch buffers.
 	addQ  []streaming.Candidate
@@ -28,6 +30,10 @@ type client struct {
 	cands []streaming.Candidate
 	due   []dueSync
 	out   [][]byte
+
+	// Colshapes and checkpoints the player is in: exits and a quit look at these
+	// instead of every shape of the world.
+	shapesIn map[proto.EntityRef]struct{}
 
 	blips   map[uint16]uint16 // blip id -> gen currently shown
 	dummies map[uint16]uint16
@@ -245,8 +251,19 @@ func (s *Server) removePlayer(c *client, exitType, reason string) {
 	})
 	// Forget what this player streamed.
 	c.stream.Each(func(e *streaming.Entry) { s.unindexStreamer(e.Key, p.ID) })
-	s.world.Colshapes.Each(func(_ uint16, cs *world.Colshape) { delete(cs.Inside, p.ID) })
-	s.world.Checkpoints.Each(func(_ uint16, cp *world.Checkpoint) { delete(cp.Inside, p.ID) })
+	for k := range c.shapesIn {
+		switch k.Type {
+		case proto.EntityColshape:
+			if cs := s.world.Colshapes.Get(k.ID); cs != nil {
+				delete(cs.Inside, p.ID)
+			}
+		case proto.EntityCheckpoint:
+			if cp := s.world.Checkpoints.Get(k.ID); cp != nil {
+				delete(cp.Inside, p.ID)
+			}
+		}
+	}
+	clear(c.shapesIn)
 	for _, pp := range c.procs {
 		s.sendToHost(pp.host, hostOp("procRes", int64(pp.hostCallID), false, "player disconnected"))
 	}

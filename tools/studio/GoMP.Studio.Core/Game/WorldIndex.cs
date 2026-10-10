@@ -3,17 +3,17 @@
 // scale, level of detail). Built from the game's map data hierarchy
 // (GameFileCache.YmapHierarchyDict); ymaps that only exist at other hours or in
 // other weather are left out (the Studio shows noon, clear sky). Interiors (MLO)
-// are not included.
+// are not included here (see Interiors.cs).
 using CodeWalker.GameFiles;
 
 namespace GoMP.Studio.Game;
 
 // a: archetype hash; p: position; q: rotation quaternion (x, y, z, w); s: scale (null = 1);
 // l: level of detail (0 HD, 1 LOD, 2-4 SLOD1-3, 5 orphan HD, 6 SLOD4); d / c: lod and child lod distance;
-// u: drawn up to this distance (the parent's child lod distance, else d); k: has children (hidden within c).
-public sealed record WorldEntity(uint a, float[] p, float[] q, float[] s, int l, float d, float c, float u, bool k);
+// m: (interiors only) index into the MLO list of the answer; u: drawn up to this distance (the parent's child lod distance, else d); k: has children (hidden within c).
+public sealed record WorldEntity(uint a, float[] p, float[] q, float[] s, int l, float d, float c, float u, bool k, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? m = null);
 
-public sealed class WorldIndex
+public sealed partial class WorldIndex
 {
     public const float CellSize = 256;
     private static readonly uint ExtraSunny = Maps.Joaat.Hash("extrasunny");

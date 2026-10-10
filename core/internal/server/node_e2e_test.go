@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -187,5 +188,127 @@ mp.events.add('playerReady', (p) => p.spawn(new mp.Vector3(0, 0, 70)));`
 		if s.world.Players.Len() != 1 || len(s.hosts) != 0 {
 			t.Errorf("players=%d hosts=%d", s.world.Players.Len(), len(s.hosts))
 		}
+	})
+}
+
+// startNodes launches one real Node.js host per packages folder, side by side on
+// one bridge (a RAGE server runs its JS and C# resources this way).
+func startNodes(t *testing.T, dirs ...string) *hostbridge.Bridge {
+	t.Helper()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	host, _ := filepath.Abs(filepath.Join("..", "..", "..", "runtimes", "node", "host.js"))
+	var procs []hostbridge.Process
+	for i, d := range dirs {
+		pk, _ := filepath.Abs(d)
+		procs = append(procs, hostbridge.Process{Name: fmt.Sprintf("node%d", i), Command: node, Args: []string{host}, Env: []string{"GOMP_PACKAGES=" + pk}})
+	}
+	var logger *slog.Logger
+	if os.Getenv("GOMP_TEST_LOG") != "" {
+		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
+	}
+	b, err := hostbridge.Start(hostbridge.Config{Processes: procs, Logger: logger, Watchdog: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { b.Close() })
+	return b
+}
+
+func lastEvent(b *bot.Bot, name string) []proto.Value {
+	var args []proto.Value
+	b.View(func(x *bot.Bot) {
+		for _, e := range x.Events {
+			if e.Name == name {
+				args = e.Args
+			}
+		}
+	})
+	return args
+}
+
+func TestTwoHostsRageStyle(t *testing.T) {
+	bridge := startNodes(t, filepath.Join("testdata", "rage-rp"), filepath.Join("testdata", "rage-side"))
+	h := newHarness(t, nil, bridge)
+	eventually(t, 20*time.Second, "both hosts loaded their packages", func() bool {
+		n := 0
+		h.exec(func(s *Server) {
+			for _, hs := range s.hosts {
+				if hs.loaded {
+					n++
+				}
+			}
+		})
+		return n == 2
+	})
+
+	b := h.bot("Medic")
+	eventually(t, 3*time.Second, "player.data and own variables reach the client", func() bool {
+		ok := false
+		b.View(func(x *bot.Bot) { ok = x.Shared["job"] == "medic" && x.OwnShared["cash"] == int64(500) })
+		return ok
+	})
+	other := h.bot("Other")
+	never(t, 300*time.Millisecond, "another player sees an own variable", func() bool {
+		seen := false
+		other.View(func(x *bot.Bot) {
+			for _, r := range x.Players {
+				if r.Name == "Medic" && r.Shared["cash"] != nil {
+					seen = true
+				}
+			}
+		})
+		return seen
+	})
+
+	b.Ready()
+	eventually(t, 3*time.Second, "spawned by the first host", func() bool {
+		ok := false
+		b.View(func(x *bot.Bot) { ok = x.Spawned && x.Pos.Dist(proto.Vec3{X: 100, Y: 200, Z: 70}) < 0.1 })
+		return ok
+	})
+	eventually(t, 3*time.Second, "the second host reads the first host's shared variable", func() bool { return chatContains(b, "side sees job=medic") })
+
+	// One client event, both hosts answer.
+	b.CallRemote("rp:ping")
+	eventually(t, 3*time.Second, "both hosts got the event", func() bool {
+		got := map[proto.Value]bool{}
+		b.View(func(x *bot.Bot) {
+			for _, e := range x.Events {
+				if e.Name == "rp:pong" && len(e.Args) == 1 {
+					got[e.Args[0]] = true
+				}
+			}
+		})
+		return got["main"] && got["side"]
+	})
+
+	// Object form of addCommand; a vehicle made by one host is in the other's pools.
+	b.Say("/hp")
+	eventually(t, 3*time.Second, "command from the object form", func() bool { return chatContains(b, "hp 100") })
+	b.Say("/car")
+	eventually(t, 3*time.Second, "seated in the car", func() bool {
+		ok := false
+		b.View(func(x *bot.Bot) { ok = x.VehicleID != proto.NoID })
+		return ok
+	})
+	b.CallRemote("rp:count")
+	eventually(t, 3*time.Second, "the second host counts the first host's vehicle", func() bool {
+		a := lastEvent(b, "rp:counted")
+		return len(a) == 2 && a[0] == int64(1) && a[1] == "LSPD"
+	})
+
+	// An async procedure (a Promise) and an event to players in range.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if v, err := b.CallProc(ctx, "rp:double", int64(21)); err != nil || v != int64(42) {
+		t.Fatalf("async proc: %v %v", v, err)
+	}
+	b.Say("/near")
+	eventually(t, 3*time.Second, "callInRange reaches the player", func() bool {
+		a := lastEvent(b, "rp:near")
+		return len(a) == 1 && a[0] == "Medic"
 	})
 }

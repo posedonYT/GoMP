@@ -36,6 +36,8 @@ add_library(gomp_core STATIC
   core/src/client.cpp
   core/src/crypto.cpp
   core/src/endpoint.cpp
+  core/src/fastdl.cpp
+  core/src/json.cpp
   core/src/messages.cpp
   core/src/socket.cpp
   third_party/monocypher/monocypher.c)
@@ -46,7 +48,7 @@ if(WIN32)
   target_link_libraries(gomp_core PUBLIC ws2_32 bcrypt)
 endif()
 
-add_executable(gomp-tests tests/test_core.cpp tests/test_game_logic.cpp)
+add_executable(gomp-tests tests/test_core.cpp tests/test_game_logic.cpp tests/test_budget.cpp tests/test_fastdl.cpp)
 target_include_directories(gomp-tests PRIVATE third_party/doctest)
 target_compile_definitions(gomp-tests PRIVATE GOMP_REPO_ROOT="${GOMP_REPO_ROOT}")
 target_link_libraries(gomp-tests PRIVATE gomp_core)

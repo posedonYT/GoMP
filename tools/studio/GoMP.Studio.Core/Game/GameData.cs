@@ -16,7 +16,10 @@ public sealed class GameData
     private readonly object sync = new();
     private Task loading;
     private Dictionary<uint, ArchetypeInfo> archetypes = new();
-    private List<ArchetypeInfo> named = new();
+    // Archetypes whose name hash differs from the asset hash they are keyed by: the
+    // game (and the server's maps) refer to them by the name hash.
+    private Dictionary<uint, ArchetypeInfo> byNameHash = new();
+    private CatalogIndex index = new(Array.Empty<ArchetypeInfo>());
 
     public string GameDir { get; }
     // How the archives are scanned (GameArchives): null — CodeWalker's own scan on Windows only.
@@ -26,11 +29,15 @@ public sealed class GameData
     public GameFileCache Cache { get; private set; }
     public Export.ModelExporter Exporter { get; private set; }
     public WorldIndex World { get; private set; }
+    public CatalogIndex Catalog => index;
     public Exception Error { get; private set; }  // why loading failed (for the console)
 
     // Handling, kit and light ids, paints of the game: read when the vehicle editor first needs them.
     private Lazy<Vehicles.GameVehicles> vehicles;
     public Vehicles.GameVehicles Vehicles => vehicles?.Value;
+    // Vehicle path nodes, read when a garage entrance first needs a road.
+    private Lazy<RoadNodes> roads;
+    public RoadNodes Roads => roads?.Value;
     public event Action<GameState, string> Changed;
 
     public GameData(string gameDir)
@@ -68,19 +75,28 @@ public sealed class GameData
             };
             GameArchives.Init(cache, GameDir, s => Set(GameState.Loading, s), e => { }, OwnScan);
             var dict = new Dictionary<uint, ArchetypeInfo>();
+            var aliases = new Dictionary<uint, ArchetypeInfo>();
             foreach (var ytyp in cache.YtypDict.Values)
                 foreach (var arch in ytyp.AllArchetypes ?? Array.Empty<Archetype>())
-                    dict[arch.Hash] = Describe(arch.Hash, arch);
+                {
+                    var info = Describe(arch);
+                    dict[arch.Hash] = info;
+                    uint nameHash = arch.BaseArchetypeDef.name.Hash;
+                    if (nameHash != 0 && nameHash != arch.Hash.Hash) aliases[nameHash] = info;
+                }
+            var idx = new CatalogIndex(dict.Values);
             lock (sync)
             {
                 archetypes = dict;
-                named = dict.Values.Where(a => a.Name != null).OrderBy(a => a.Name, StringComparer.Ordinal).ToList();
+                byNameHash = aliases;
+                index = idx;
                 Cache = cache;
                 Exporter = new Export.ModelExporter(cache);
                 World = new WorldIndex(cache);
                 vehicles = new Lazy<Vehicles.GameVehicles>(() => GoMP.Studio.Vehicles.GameVehicles.Load(cache));
+                roads = new Lazy<RoadNodes>(() => RoadNodes.Load(cache));
             }
-            Set(GameState.Ready, $"готово: {dict.Count} моделей");
+            Set(GameState.Ready, $"готово: {dict.Count} моделей, {idx.NamedCount} с именами");
         }
         catch (Exception e)
         {
@@ -89,9 +105,12 @@ public sealed class GameData
         }
     }
 
-    private static ArchetypeInfo Describe(uint hash, Archetype a)
+    private static ArchetypeInfo Describe(Archetype a)
     {
+        uint hash = a.Hash;
+        // Keyed by the asset name, which is often not in the dictionary while the model name is.
         string name = JenkIndex.TryGetString(hash);
+        if (string.IsNullOrEmpty(name)) name = JenkIndex.TryGetString(a.BaseArchetypeDef.name.Hash);
         string kind = a is MloArchetype ? "interior" : a is TimeArchetype ? "time" : "model";
         return new ArchetypeInfo(string.IsNullOrEmpty(name) ? null : name, hash,
             new[] { a.BBMin.X, a.BBMin.Y, a.BBMin.Z }, new[] { a.BBMax.X, a.BBMax.Y, a.BBMax.Z },
@@ -105,19 +124,15 @@ public sealed class GameData
         Changed?.Invoke(state, status);
     }
 
-    public bool Has(uint hash) => archetypes.ContainsKey(hash);
+    public bool Has(uint hash) => archetypes.ContainsKey(hash) || byNameHash.ContainsKey(hash);
 
-    public ArchetypeInfo Get(uint hash) => archetypes.TryGetValue(hash, out var a) ? a : null;
+    public ArchetypeInfo Get(uint hash) =>
+        archetypes.TryGetValue(hash, out var a) ? a : byNameHash.TryGetValue(hash, out var b) ? b : null;
 
-    // Models whose name contains every word of the query; props first.
-    public IReadOnlyList<ArchetypeInfo> Search(string query, int limit, bool interiors = false)
-    {
-        var words = (query ?? "").ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return named
-            .Where(a => (interiors || a.Kind != "interior") && words.All(w => a.Name.Contains(w, StringComparison.Ordinal)))
-            .OrderBy(a => a.Name.StartsWith("prop_") ? 0 : 1)
-            .ThenBy(a => a.Name.Length)
-            .Take(Math.Clamp(limit, 1, 500))
-            .ToList();
-    }
+    // Models whose name matches every word of the query; see CatalogSearch for the order.
+    public IReadOnlyList<ArchetypeInfo> Search(string query, int limit, bool interiors = false) =>
+        index.Search(query, null, 0, limit, interiors).Items;
+
+    public CatalogPage Search(string query, string category, int offset, int limit, bool interiors) =>
+        index.Search(query, category, offset, limit, interiors);
 }

@@ -2,6 +2,8 @@ package hostbridge
 
 import (
 	"os"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -125,6 +127,27 @@ func TestWatchdogKillsHungHost(t *testing.T) {
 	}
 }
 
+// Silence shows a host that stopped answering pings well before the watchdog
+// acts; a host that answers stays around the ping interval.
+func TestSilenceShowsAHungHost(t *testing.T) {
+	measure := func(mode string) time.Duration {
+		b := startFake(t, mode, Config{Watchdog: time.Minute})
+		waitFor(t, b, HostUp, 10*time.Second, nil)
+		var worst time.Duration
+		for end := time.Now().Add(2500 * time.Millisecond); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+			b.Flush()
+			worst = max(worst, b.Silence())
+		}
+		return worst
+	}
+	if d := measure("echo"); d > pingInterval+500*time.Millisecond {
+		t.Errorf("answering host: silence %v", d)
+	}
+	if d := measure("hang"); d < 2*time.Second {
+		t.Errorf("hung host: silence %v, want 2s+", d)
+	}
+}
+
 func TestBadTokenRejected(t *testing.T) {
 	b, err := Start(Config{})
 	if err != nil {
@@ -168,4 +191,52 @@ func TestAttachedHostMalformedFrame(t *testing.T) {
 	// A frame that is not an array of ops drops the host.
 	_, _ = c.conn.Write([]byte{2, 0, 0, 0, proto.TagInt, 2})
 	waitFor(t, b, HostDown, 5*time.Second, nil)
+}
+
+// Two host processes (RAGE servers run JS and C# side by side): each connects with
+// its own token; the watchdog kills the one that hangs, the other keeps running.
+func TestTwoProcessesAreSupervisedApart(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Start(Config{
+		Watchdog: 1500 * time.Millisecond,
+		Processes: []Process{
+			{Name: "js", Command: exe, Env: []string{"GOMP_FAKE_HOST=echo"}},
+			{Name: "cs", Command: exe, Env: []string{"GOMP_FAKE_HOST=hang"}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { b.Close() })
+	names := map[string]int{}
+	for len(names) < 2 {
+		up := waitFor(t, b, HostUp, 10*time.Second, nil)
+		names[up.Name] = up.Host
+	}
+	if names["fake-echo"] == 0 || names["fake-hang"] == 0 {
+		t.Fatalf("hosts %v", names)
+	}
+	for end := time.Now().Add(3 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+		b.Flush()
+		if !slices.Contains(b.Hosts(), names["fake-hang"]) {
+			break
+		}
+	}
+	down := waitFor(t, b, HostDown, 5*time.Second, func(e Event) bool { return e.Host == names["fake-hang"] })
+	if !strings.HasPrefix(down.Reason, "watchdog") {
+		t.Fatalf("reason %q", down.Reason)
+	}
+	// The other one still answers.
+	b.Send(names["fake-echo"], Op{OpEvent, "x", []proto.Value{}})
+	b.Flush()
+	ev := waitFor(t, b, HostOps, 5*time.Second, func(e Event) bool { return e.Host == names["fake-echo"] })
+	if ev.Ops[0][0] != "echo" {
+		t.Fatalf("echo %v", ev.Ops)
+	}
+	if !slices.Contains(b.Hosts(), names["fake-echo"]) {
+		t.Fatal("the healthy host was dropped too")
+	}
 }

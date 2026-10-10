@@ -5,7 +5,7 @@
 package streaming
 
 import (
-	"sort"
+	"slices"
 
 	"gomp/wire/proto"
 )
@@ -25,30 +25,35 @@ type Entry struct {
 }
 
 // Set is the stream set of one receiver. Entries live in a slice for fast
-// iteration; an index map serves lookups.
+// iteration; an index map serves lookups. The map is keyed by the packed key:
+// hashing a uint32 is several times cheaper than hashing the struct, and Diff
+// looks up every candidate of every receiver several times a second.
 type Set struct {
 	list  []*Entry
-	idx   map[Key]int32
+	idx   map[uint32]int32
 	epoch uint32
 
 	// Scratch buffers reused by Diff.
 	kept   []Candidate
+	keptE  []*Entry // the current entry of each kept candidate (nil: not streamed)
 	scored []scored
 }
 
+func pack(k Key) uint32 { return uint32(k.Type)<<16 | uint32(k.ID) }
+
 // NewSet returns an empty set.
-func NewSet() *Set { return &Set{idx: make(map[Key]int32)} }
+func NewSet() *Set { return &Set{idx: make(map[uint32]int32)} }
 
 // Get returns the entry for k or nil.
 func (s *Set) Get(k Key) *Entry {
-	if i, ok := s.idx[k]; ok {
+	if i, ok := s.idx[pack(k)]; ok {
 		return s.list[i]
 	}
 	return nil
 }
 
 // Has reports whether k is streamed.
-func (s *Set) Has(k Key) bool { _, ok := s.idx[k]; return ok }
+func (s *Set) Has(k Key) bool { _, ok := s.idx[pack(k)]; return ok }
 
 // Len returns the number of streamed entities.
 func (s *Set) Len() int { return len(s.list) }
@@ -56,18 +61,20 @@ func (s *Set) Len() int { return len(s.list) }
 // Add inserts a candidate (replacing an existing entry for the same key).
 func (s *Set) Add(c Candidate) *Entry {
 	e := &Entry{Key: c.Key, Gen: c.Gen, DistSq: c.DistSq, Acc: 1, since: s.epoch}
-	if i, ok := s.idx[c.Key]; ok {
+	pk := pack(c.Key)
+	if i, ok := s.idx[pk]; ok {
 		s.list[i] = e
 		return e
 	}
-	s.idx[c.Key] = int32(len(s.list))
+	s.idx[pk] = int32(len(s.list))
 	s.list = append(s.list, e)
 	return e
 }
 
 // Remove deletes k.
 func (s *Set) Remove(k Key) {
-	i, ok := s.idx[k]
+	pk := pack(k)
+	i, ok := s.idx[pk]
 	if !ok {
 		return
 	}
@@ -75,11 +82,11 @@ func (s *Set) Remove(k Key) {
 	if int(i) != last {
 		moved := s.list[last]
 		s.list[i] = moved
-		s.idx[moved.Key] = i
+		s.idx[pack(moved.Key)] = i
 	}
 	s.list[last] = nil
 	s.list = s.list[:last]
-	delete(s.idx, k)
+	delete(s.idx, pk)
 }
 
 // Each visits every entry.
@@ -123,6 +130,7 @@ const (
 
 type scored struct {
 	c     Candidate
+	e     *Entry
 	score float32
 }
 
@@ -139,19 +147,23 @@ func DiffInto(cur *Set, cands []Candidate, lim Limits, added []Candidate, remove
 	if cur.epoch == 0 {
 		cur.epoch = 1
 	}
-	kept := cur.kept[:0]
+	// Each candidate is looked up once; the entry travels with it.
+	kept, keptE := cur.kept[:0], cur.keptE[:0]
 	for _, c := range cands {
 		e := cur.Get(c.Key)
-		in := e != nil && e.Gen == c.Gen
-		if c.Pinned || c.DistSq <= lim.EnterSq || (in && c.DistSq <= lim.LeaveSq) {
+		if e != nil && e.Gen != c.Gen {
+			e = nil // another entity under a reused id: streamed anew
+		}
+		if c.Pinned || c.DistSq <= lim.EnterSq || (e != nil && c.DistSq <= lim.LeaveSq) {
 			kept = append(kept, c)
+			keptE = append(keptE, e)
 		}
 	}
 	if len(lim.Caps) > 0 {
-		kept = cur.applyCaps(kept, lim.Caps)
+		kept, keptE = cur.applyCaps(kept, keptE, lim.Caps)
 	}
-	for _, c := range kept {
-		if e := cur.Get(c.Key); e != nil && e.Gen == c.Gen {
+	for i, c := range kept {
+		if e := keptE[i]; e != nil {
 			e.DistSq = c.DistSq
 			e.mark = cur.epoch
 		} else {
@@ -163,11 +175,11 @@ func DiffInto(cur *Set, cands []Candidate, lim Limits, added []Candidate, remove
 			removed = append(removed, e.Key)
 		}
 	}
-	cur.kept = kept
+	cur.kept, cur.keptE = kept, keptE
 	return added, removed
 }
 
-func (cur *Set) applyCaps(kept []Candidate, caps map[proto.EntityType]int) []Candidate {
+func (cur *Set) applyCaps(kept []Candidate, keptE []*Entry, caps map[proto.EntityType]int) ([]Candidate, []*Entry) {
 	// Count per type first; most updates are below every cap.
 	var counts [proto.EntityTypeCount]int
 	for _, c := range kept {
@@ -175,47 +187,62 @@ func (cur *Set) applyCaps(kept []Candidate, caps map[proto.EntityType]int) []Can
 			counts[c.Key.Type]++
 		}
 	}
+	var limits [proto.EntityTypeCount]int
 	over := false
 	for t, n := range counts {
 		if limit := caps[proto.EntityType(t)]; limit > 0 && n > limit {
+			limits[t] = limit
 			over = true
 		}
 	}
 	if !over {
-		return kept
+		return kept, keptE
 	}
+	// Only the types over their cap are ranked; the rest pass as they are.
 	sc := cur.scored[:0]
-	for _, c := range kept {
+	n := 0
+	for i, c := range kept {
+		if int(c.Key.Type) >= len(limits) || limits[c.Key.Type] == 0 {
+			kept[n], keptE[n] = c, keptE[i]
+			n++
+			continue
+		}
 		s := c.DistSq
+		e := keptE[i]
 		switch {
 		case c.Pinned:
 			s = -1
-		default:
-			if e := cur.Get(c.Key); e != nil && e.Gen == c.Gen {
-				if cur.epoch-e.since < minDwell {
-					s *= dwellBonus
-				} else {
-					s *= keepBonus
-				}
+		case e != nil:
+			if cur.epoch-e.since < minDwell {
+				s *= dwellBonus
+			} else {
+				s *= keepBonus
 			}
 		}
-		sc = append(sc, scored{c: c, score: s})
+		sc = append(sc, scored{c: c, e: e, score: s})
 	}
-	sort.Slice(sc, func(i, j int) bool { return sc[i].score < sc[j].score })
+	slices.SortFunc(sc, func(a, b scored) int {
+		switch {
+		case a.score < b.score:
+			return -1
+		case a.score > b.score:
+			return 1
+		}
+		return 0
+	})
 	var taken [proto.EntityTypeCount]int
-	out := kept[:0]
+	out, outE := kept[:n], keptE[:n]
 	for _, s := range sc {
 		t := s.c.Key.Type
-		if limit := caps[t]; limit > 0 && int(t) < len(taken) {
-			if taken[t] >= limit {
-				continue
-			}
-			taken[t]++
+		if taken[t] >= limits[t] {
+			continue
 		}
+		taken[t]++
 		out = append(out, s.c)
+		outE = append(outE, s.e)
 	}
 	cur.scored = sc
-	return out
+	return out, outE
 }
 
 // Distance tiers for sync update rates.

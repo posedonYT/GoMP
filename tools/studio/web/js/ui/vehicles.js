@@ -54,7 +54,14 @@ export class VehicleEditor {
       list.append(h('li', { class: 'group' }, p.pack));
       for (const m of p.models) {
         const on = this.view && this.view.pack === p.pack && this.view.model === m.model;
-        list.append(h('li', { class: on ? 'on' : '', onclick: () => this.open(p.pack, m.model) },
+        // The model is fetched while the pointer rests on the row: opening it is then instant.
+        let hover = null;
+        list.append(h('li', {
+          class: on ? 'on' : '',
+          onclick: () => this.open(p.pack, m.model),
+          onpointerenter: () => { hover = setTimeout(() => this.garage.prefetch(p.pack, m.model).catch(() => {}), 120); },
+          onpointerleave: () => clearTimeout(hover),
+        },
           h('span', { class: 'grow' }, m.gameName || m.model), h('span', { class: 'tag' }, m.model)));
       }
     }
@@ -69,6 +76,10 @@ export class VehicleEditor {
   // ------------------------------------------------------------------ open / close
 
   async open(pack, model) {
+    if (this.studio.decor) {
+      toast('Сначала выйдите из режима декора («Готово»)', 'warning');
+      return;
+    }
     if (this.dirty && !(await confirmBox('Несохранённые изменения', 'Изменения этой машины не сохранены. Открыть другую?'))) return;
     try {
       const view = await this.fetchView(pack, model);
@@ -136,6 +147,7 @@ export class VehicleEditor {
     if (this.edits.kits) patch.kits = this.edits.kits;
     if (this.edits.lights) patch.lights = this.edits.lights;
     const { pack, model } = this.view;
+    this.garage.forget(pack, model);  // the saved vehicle is a new file
     const r = await fetch(`/api/vehicles/${encodeURIComponent(pack)}/${encodeURIComponent(model)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
     });

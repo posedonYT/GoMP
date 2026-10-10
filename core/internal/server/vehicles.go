@@ -55,7 +55,7 @@ func (s *Server) onVehicleSync(c *client, m *proto.VehicleSync) {
 		c.badMessages++
 		return
 	}
-	if s.cfg.GoMP.AnticheatEnabled {
+	if s.cfg.GoMP.AnticheatEnabled && !c.acExempt {
 		if r := c.mover.CheckVehicle(s.now, v.Pos, m.Pos, s.vehicleMaxSpeed(v), s.acLimits); !r.OK {
 			s.violation(c, "vehicle speed", r.Limit)
 			return

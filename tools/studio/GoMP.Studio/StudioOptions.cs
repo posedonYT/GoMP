@@ -14,6 +14,8 @@ public sealed class StudioOptions
     public bool OpenBrowser { get; init; } = true;
 
     public string MapsDir => Path.Combine(ServerFiles, "maps");
+    public string HousesFile => Path.Combine(ServerFiles, "houses.json");
+    public string DataFile => Path.Combine(ServerFiles, "data", "gomp-rp.json");
 
     public static readonly Dictionary<string, string> Switches = new()
     {

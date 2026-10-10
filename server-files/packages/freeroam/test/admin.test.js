@@ -14,11 +14,13 @@ test('/give without a static gives the item to the admin', () => {
   assert.strictEqual(inventory.countOf(ch, 'ammo_heavysniper'), 40);
 });
 
-test('/give <vehicle> spawns an owned vehicle next to the player', () => {
+test('/give <vehicle> gives the player a car of his own (cars.js), standing next to him', () => {
   const admin = fake.login(fake.join());
   const player = fake.login(fake.join({ name: 'Other' }));
   fake.command(admin, `/give ${player.getVariable('static')} vaz2107`);
-  const veh = player.getVariable('personalVehicle');
+  const car = require('../roleplay').character(player).cars[0];
+  assert.ok(car && car.model === 'lada2107', 'a car record');
+  const veh = require('../cars').vehicleOf(car.id);
   assert.ok(veh && fake.vehicles.exists(veh), 'vehicle spawned');
   assert.strictEqual(veh.model, mp.joaat('lada2107'));
   assert.strictEqual(veh.getVariable('owner'), player.getVariable('static'));
@@ -26,9 +28,8 @@ test('/give <vehicle> spawns an owned vehicle next to the player', () => {
   assert.ok(player.notes.some((n) => /lada2107/.test(n)));
 
   fake.command(admin, '/give agera');
-  assert.strictEqual(admin.getVariable('personalVehicle').model, mp.joaat('agerars'));
   fake.command(admin, '/give veh:sultan');
-  assert.strictEqual(admin.getVariable('personalVehicle').model, mp.joaat('sultan'));
+  assert.deepStrictEqual(require('../roleplay').character(admin).cars.map((c) => c.model), ['agerars', 'sultan']);
 });
 
 test('/setfuel and /fixveh work on the vehicle next to the admin', () => {

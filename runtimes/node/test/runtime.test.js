@@ -356,3 +356,24 @@ test('serverShutdown honours delayShutdown', async () => {
   await new Promise((r) => setTimeout(r, 120));
   assert.ok(sent.some((o) => o[0] === 'shutdownReady'));
 });
+
+test('RAGE API: own variables on any entity (players: private; others: shared), checkpoint colour', () => {
+  const { rt, sent, mp } = makeRuntime();
+  const p = addPlayer(rt, 7, 'Own');
+  p.setOwnVariable('cash', 10);
+  assert.equal(p.getOwnVariable('cash'), 10);
+  assert.equal(p.getVariable('cash'), null, 'a player\'s own variable is not shared');
+  assert.deepEqual(lastOf(sent, 'call').slice(4), ['setOwnVariables', [{ cash: 10 }]]);
+  const veh = mp.vehicles.new(mp.joaat('sultan'), new mp.Vector3(0, 0, 0));
+  veh.setOwnVariable('fuel', 5);
+  assert.equal(veh.getVariable('fuel'), 5, 'a vehicle has no owner: it is shared');
+  assert.equal(veh.getOwnVariable('fuel'), 5);
+  veh.setOwnVariables({ a: 1 });
+  assert.equal(veh.getVariable('a'), 1);
+  const cp = mp.checkpoints.new(1, new mp.Vector3(0, 0, 0), 2);
+  cp.color = [10, 20, 30, 40];
+  assert.deepEqual(cp.color, [10, 20, 30, 40]);
+  assert.deepEqual(cp.getColor(), [10, 20, 30, 40]);
+  cp.color = [1, 2, 3];
+  assert.deepEqual(cp.color, [1, 2, 3, 255]);
+});

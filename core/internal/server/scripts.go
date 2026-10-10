@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"strconv"
+	"time"
 
 	"gomp/core/internal/hostbridge"
 	"gomp/core/internal/world"
@@ -61,7 +63,10 @@ func (s *Server) emitArgs(name string, args []proto.Value) {
 		return
 	}
 	s.metrics.hostEvents.Add(1)
-	// Deltas first: handlers must observe the state that caused the event.
+	// Deltas first: handlers must observe the state that caused the event. The
+	// positions of the entities in the event go now; the rest at the next
+	// mirror tick (host-mirror-rate).
+	s.flushEventEntities(args)
 	s.flushDeltas()
 	op := hostOp(hostbridge.OpEvent, name, args)
 	for _, id := range targets {
@@ -118,6 +123,109 @@ func syncFields(ent world.Entity, f map[string]proto.Value) {
 	}
 }
 
+// pollHosts runs the commands of the script hosts, at most host-ops-per-tick
+// of them: a flood of commands (a script spawning thousands of things at once)
+// spreads over several ticks instead of stalling one.
+func (s *Server) pollHosts() {
+	s.scripts.Poll(func(e hostbridge.Event) { s.hostBacklog = append(s.hostBacklog, e) })
+	budget := s.cfg.GoMP.HostOpsPerTick
+	if budget <= 0 {
+		budget = math.MaxInt
+	}
+	done := 0
+	for done < len(s.hostBacklog) {
+		e := &s.hostBacklog[done]
+		if e.Kind == hostbridge.HostOps && len(e.Ops) > budget {
+			part := *e
+			part.Ops = e.Ops[:budget]
+			e.Ops = e.Ops[budget:]
+			s.onHostEvent(part)
+			budget = 0
+			break
+		}
+		if e.Kind == hostbridge.HostOps {
+			budget -= len(e.Ops)
+		}
+		s.onHostEvent(*e)
+		done++
+		if budget <= 0 {
+			break
+		}
+	}
+	rest := copy(s.hostBacklog, s.hostBacklog[done:])
+	clear(s.hostBacklog[rest:])
+	s.hostBacklog = s.hostBacklog[:rest]
+	for _, e := range s.hostBacklog {
+		s.metrics.hostOpsDeferred.Add(uint64(len(e.Ops)))
+	}
+}
+
+// flushEventEntities sends the synced state of the entities an event is about.
+func (s *Server) flushEventEntities(args []proto.Value) {
+	if len(s.hostSyncDirty) == 0 {
+		return
+	}
+	buf := s.mirrorBuf[:0]
+	for _, a := range args {
+		ref, ok := a.(proto.EntityRef)
+		if !ok {
+			continue
+		}
+		ent := s.world.Get(ref.Type, ref.ID)
+		if ent == nil {
+			continue
+		}
+		if _, dirty := s.hostSyncDirty[ent]; dirty {
+			delete(s.hostSyncDirty, ent)
+			buf = appendMirror(buf, ent)
+		}
+	}
+	s.sendMirror(buf)
+}
+
+// flushMirror sends the synced state of every entity that moved since the
+// last mirror tick, as one compact op.
+func (s *Server) flushMirror() {
+	if len(s.hostSyncDirty) == 0 {
+		return
+	}
+	buf := s.mirrorBuf[:0]
+	for ent := range s.hostSyncDirty {
+		if !ent.Base().Destroyed {
+			buf = appendMirror(buf, ent)
+		}
+	}
+	clear(s.hostSyncDirty)
+	s.sendMirror(buf)
+}
+
+func (s *Server) sendMirror(buf []proto.Value) {
+	if len(buf) > 0 {
+		// The op keeps the slice: a fresh one for the next flush.
+		s.scripts.Broadcast(hostOp(hostbridge.OpUpdates, buf))
+		s.metrics.hostOpsOut.Add(uint64(len(buf) / hostbridge.MirrorStride))
+		s.mirrorBuf = make([]proto.Value, 0, cap(buf))
+		return
+	}
+	s.mirrorBuf = buf
+}
+
+// appendMirror adds one entity to an OpUpdates array (MirrorStride values).
+func appendMirror(buf []proto.Value, ent world.Entity) []proto.Value {
+	b := ent.Base()
+	switch e := ent.(type) {
+	case *world.Player:
+		var aim proto.Value
+		if e.Flags&proto.PedAiming != 0 {
+			aim = e.AimPos
+		}
+		return append(buf, int64(b.Type), int64(b.ID), e.Pos, e.Vel, proto.Vec3{X: e.Heading}, int64(e.Flags), int64(e.Move), aim)
+	case *world.Vehicle:
+		return append(buf, int64(b.Type), int64(b.ID), e.Pos, e.Vel, e.Rot, int64(e.Flags), float64(e.Steer), nil)
+	}
+	return buf
+}
+
 // flushDeltas turns pending mirror changes into update ops, in order.
 func (s *Server) flushDeltas() {
 	if len(s.hosts) == 0 {
@@ -126,16 +234,6 @@ func (s *Server) flushDeltas() {
 		clear(s.hostSyncDirty)
 		return
 	}
-	for ent := range s.hostSyncDirty {
-		i, ok := s.hostPendingIx[ent]
-		if !ok {
-			i = len(s.hostPending)
-			s.hostPendingIx[ent] = i
-			s.hostPending = append(s.hostPending, pendingUpdate{ent: ent, fields: map[string]proto.Value{}})
-		}
-		syncFields(ent, s.hostPending[i].fields)
-	}
-	clear(s.hostSyncDirty)
 	for _, pu := range s.hostPending {
 		b := pu.ent.Base()
 		if b.Destroyed || len(pu.fields) == 0 {
@@ -154,7 +252,15 @@ func (s *Server) flushHosts() {
 		return
 	}
 	s.flushDeltas()
+	if len(s.hosts) > 0 && s.tick%s.mirrorEvery == 0 {
+		s.flushMirror()
+	}
 	s.scripts.Flush()
+	if q, ok := s.scripts.(interface{ Silence() time.Duration }); ok {
+		if d := int64(q.Silence()); d > s.metrics.hostSilence.Load() {
+			s.metrics.hostSilence.Store(d)
+		}
+	}
 }
 
 // fullState serialises every mirrored field of ent.
@@ -364,6 +470,7 @@ func (s *Server) onHostDown(id int, reason string) {
 		return
 	}
 	s.log.Warn("script host disconnected", "host", h.name, "reason", reason)
+	s.metrics.hostsDown.Add(1)
 	delete(s.hosts, id)
 	var owned []world.Entity
 	for _, t := range world.AllTypes {

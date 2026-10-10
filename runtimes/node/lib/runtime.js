@@ -7,6 +7,8 @@ const path = require('path');
 const { Vector3 } = require('./vector3');
 const { joaat } = require('./joaat');
 const { EntityType, EntityTypeName, GLOBAL_DIMENSION } = require('./constants');
+
+const MIRROR_STRIDE = 8; // values per entity in an 'updates' op (core: hostbridge.MirrorStride)
 const E = require('./entities');
 const P = require('./pools');
 const { EventMp, EventMpPool } = require('./events');
@@ -135,6 +137,8 @@ class Runtime {
         return this._onDestroy(op[1], op[2], op[3]);
       case 'update':
         return this._onUpdate(op[1], op[2], this.resolve(op[3] || {}));
+      case 'updates':
+        return this._onUpdates(op[1] || []);
       case 'event':
         return this._onEvent(op[1], this.resolve(op[2] || []));
       case 'procReq':
@@ -190,6 +194,9 @@ class Runtime {
     if (e._origin === 'self') return; // we destroyed it ourselves already; the id may be reused
     if (type === EntityType.player && e._gen !== gen) return;
     pool._remove(id);
+    // Scripts keep state per entity (fuel, owners...): they must hear about
+    // entities the core removes too, or that state leaks.
+    if (type !== EntityType.player) this.events.dispatch('entityDestroyed', [e]);
   }
 
   _onUpdate(type, id, fields) {
@@ -206,6 +213,30 @@ class Runtime {
         }
       } else {
         s[k] = v;
+      }
+    }
+  }
+
+  // Synced state of many entities, MIRROR_STRIDE values each (core:
+  // hostbridge.OpUpdates): type, id, pos, vel, rot (players: heading in x),
+  // flags, move|steer, aim|null. Cheaper than a map per entity per tick.
+  _onUpdates(v) {
+    for (let i = 0; i + MIRROR_STRIDE <= v.length; i += MIRROR_STRIDE) {
+      const pool = this.poolOf(v[i]);
+      const e = pool && pool.at(v[i + 1]);
+      if (!e) continue;
+      const s = e._s;
+      s.pos = v[i + 2];
+      s.vel = v[i + 3];
+      if (v[i] === EntityType.player) {
+        s.heading = v[i + 4] ? v[i + 4].x : 0;
+        s.flags = v[i + 5];
+        s.move = v[i + 6];
+        if (v[i + 7]) s.aimPos = v[i + 7];
+      } else {
+        s.rot = v[i + 4];
+        s.vflags = v[i + 5];
+        s.steer = v[i + 6];
       }
     }
   }

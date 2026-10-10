@@ -1,0 +1,109 @@
+{
+  "started": "2026-10-10T15:38:08.132613+03:00",
+  "options": {
+    "auth": false,
+    "bots": 1000,
+    "duration": "45s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "amd64",
+    "cpus": 12,
+    "go": "go1.27.1",
+    "os": "windows"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.9567797703925482,
+    "deaths": 3521,
+    "gcPauseP99Ms": 0.917504,
+    "goroutines": 23,
+    "heapMB": 393.84322357177734,
+    "hitsPerSec": 354.77026998618436,
+    "hostCommandsPerSec": 155.87718737517977,
+    "hostEventsPerSec": 78.0716325388347,
+    "hostOpsDeferred": 0,
+    "hostOpsOutPerSec": 12981.620680483215,
+    "hostSilenceMaxMs": 1038.562,
+    "hostsDown": 0,
+    "kbInPerPlayerSec": 1.307629211442675,
+    "kbOutPerPlayerSec": 63.04096661313641,
+    "players": 1000,
+    "relBacklogMax": 13,
+    "rssMB": 502.65234375,
+    "shotsPerSec": 615.7481498447713,
+    "syncDeferredPerSec": 0.04434628374827305,
+    "syncInPerSec": 27584.053685682058,
+    "syncOutPerSec": 1459212.5820198653,
+    "tickMaxMs": 19.036,
+    "tickP50Ms": 5.874,
+    "tickP99Ms": 13.385,
+    "ticksMissed": 0,
+    "ticksOver": 0,
+    "vehicles": 200,
+    "violations": 0,
+    "writerStalls": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1139.712,
+    "ped_p50": 67,
+    "ped_p95": 69.6,
+    "ped_p99": 100.2,
+    "samples": 8174637,
+    "veh_p50": 66.5,
+    "veh_p99": 73
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 19.992451000000013,
+    "resends": 24,
+    "syncMsgsPerBotPerSec": 1714.867776998424
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 13.385,
+      "limit": 10,
+      "passed": false
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 19.036,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "script host silence max ms",
+      "value": 1038.562,
+      "limit": 2500,
+      "passed": true
+    },
+    {
+      "name": "script hosts lost",
+      "value": 0,
+      "limit": 0,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 100.2,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": false
+}

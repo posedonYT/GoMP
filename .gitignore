@@ -17,3 +17,11 @@ server-files/packages/*/admin.json
 /tools/studio/*/obj/
 /tools/studio/web/node_modules/
 /dist/
+# RAGE.MP compatibility tools: the test corpus (open-source gamemodes) and RAGE's
+# own binaries stay local; the MIT type definitions are kept (third_party/ragemp/types-*)
+/third_party/ragemp/corpus/
+/third_party/ragemp/nuget/
+/third_party/ragemp/csharp-api.json
+/tools/compat/node_modules/
+/tools/compat/dotnet/bin/
+/tools/compat/dotnet/obj/

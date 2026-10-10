@@ -12,7 +12,8 @@ const first = (type) => places.places.find((p) => p.type === type);
 
 test('gas stations, 24/7 shops and tuning shops have map blips', () => {
   for (const type of ['fuel', 'shop', 'tune']) assert.ok(first(type), type);
-  assert.strictEqual(fake.blips.length, places.places.length);
+  const placeBlips = fake.blips.toArray().filter((b) => [361, 52, 72].includes(b.sprite));
+  assert.strictEqual(placeBlips.length, places.places.length);
   assert.ok(fake.blips.toArray().some((b) => b.sprite === 361), 'gas station blip');
   assert.ok(fake.blips.toArray().some((b) => b.sprite === 52), '24/7 blip');
   assert.ok(fake.blips.toArray().some((b) => b.sprite === 72), 'LSC blip');

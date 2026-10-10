@@ -7,7 +7,7 @@
 
 const { Vector3 } = require('./vector3');
 const { hashOf } = require('./joaat');
-const { EntityTypeName, Prop, PedFlags, VehicleFlags, ShapeType } = require('./constants');
+const { EntityType, EntityTypeName, Prop, PedFlags, VehicleFlags, ShapeType } = require('./constants');
 
 function vec(v) {
   if (v instanceof Vector3) return v;
@@ -117,6 +117,30 @@ class EntityMp {
     const kv = {};
     for (const [k, v] of Object.entries(values || {})) kv[k] = v === undefined ? null : v;
     this._rt._shared(this, kv, false);
+  }
+
+  // Own variables: seen by the player himself only. RAGE declares them on every entity;
+  // an entity that is not a player has nobody to own them: they are its ordinary
+  // shared variables then.
+  getOwnVariable(name) {
+    if (this._t !== EntityType.player) return this.getVariable(name);
+    const own = this._s.own;
+    if (!own || !Object.prototype.hasOwnProperty.call(own, name)) return null;
+    return own[name];
+  }
+
+  setOwnVariable(name, value) {
+    if (this._t !== EntityType.player) return this.setVariable(name, value);
+    this._rt._shared(this, { [name]: value === undefined ? null : value }, true);
+    return undefined;
+  }
+
+  setOwnVariables(values) {
+    if (this._t !== EntityType.player) return this.setVariables(values);
+    const kv = {};
+    for (const [k, v] of Object.entries(values || {})) kv[k] = v === undefined ? null : v;
+    this._rt._shared(this, kv, true);
+    return undefined;
   }
 
   hasVariable(name) {
@@ -387,6 +411,15 @@ class PlayerMp extends EntityMp {
     this._rt._set(this, 'disableOutgoingSync', !!v);
   }
 
+  /** GoMP: false turns the core's movement checks off for this player (admin flight). */
+  get anticheat() {
+    return this._s.anticheat !== false;
+  }
+
+  set anticheat(v) {
+    this._rt._set(this, 'anticheat', !!v);
+  }
+
   /** Players within stream distance in the same dimension (approximation of RAGE's stream set). */
   get streamedPlayers() {
     return this._rt.streamedFor(this);
@@ -398,22 +431,6 @@ class PlayerMp extends EntityMp {
 
   isStreamed(player) {
     return this.streamedPlayers.includes(player);
-  }
-
-  getOwnVariable(name) {
-    const own = this._s.own;
-    if (!own || !Object.prototype.hasOwnProperty.call(own, name)) return null;
-    return own[name];
-  }
-
-  setOwnVariable(name, value) {
-    this._rt._shared(this, { [name]: value === undefined ? null : value }, true);
-  }
-
-  setOwnVariables(values) {
-    const kv = {};
-    for (const [k, v] of Object.entries(values || {})) kv[k] = v === undefined ? null : v;
-    this._rt._shared(this, kv, true);
   }
 
   spawn(position, heading) {
@@ -1090,6 +1107,16 @@ class CheckpointMp extends VisualMp {
 
   set radius(v) {
     this._rt._set(this, 'radius', Number(v));
+  }
+
+  // RGBA, like getColor()/setColor().
+  get color() {
+    return this.getColor();
+  }
+
+  set color(c) {
+    const [r = 255, g = 255, b = 255, a = 255] = [].concat(c);
+    this.setColor(r, g, b, a);
   }
 }
 propAccessor(CheckpointMp, 'destination', Prop.destination, new Vector3(), (v) => vec(v));

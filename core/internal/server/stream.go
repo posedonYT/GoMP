@@ -2,7 +2,7 @@ package server
 
 import (
 	"math"
-	"sort"
+	"slices"
 
 	"gomp/core/internal/streaming"
 	"gomp/core/internal/world"
@@ -131,8 +131,8 @@ func (s *Server) updateStreaming() {
 		for _, k := range c.remQ {
 			s.streamOut(c, k)
 		}
-		sort.SliceStable(c.addQ, func(i, j int) bool {
-			return streamOrder(c.addQ[i].Key.Type) < streamOrder(c.addQ[j].Key.Type)
+		slices.SortStableFunc(c.addQ, func(a, b streaming.Candidate) int {
+			return streamOrder(a.Key.Type) - streamOrder(b.Key.Type)
 		})
 		for _, cand := range c.addQ {
 			ent := s.world.Get(cand.Key.Type, cand.Key.ID)
@@ -253,7 +253,8 @@ func (s *Server) updateShapes() {
 		}
 		p := c.p
 		pk := p.Key()
-		inside := map[proto.EntityRef]bool{}
+		inside := s.shapeScratch
+		clear(inside)
 		s.shapes.Query(p.Dimension, p.Pos, radius, func(k streaming.Key, _ proto.Vec3, _ float32) {
 			switch k.Type {
 			case proto.EntityColshape:
@@ -272,23 +273,33 @@ func (s *Server) updateShapes() {
 				inside[cs.Key()] = true
 			}
 		}
-		// Exits first, then entries.
-		s.world.Colshapes.Each(func(_ uint16, cs *world.Colshape) {
-			if cs.Inside[p.ID] && !inside[cs.Key()] {
-				delete(cs.Inside, p.ID)
-				s.emit("playerExitColshape", pk, cs.Key())
+		// Exits first, then entries: only the shapes the player was in.
+		if c.shapesIn == nil {
+			c.shapesIn = map[proto.EntityRef]struct{}{}
+		}
+		for k := range c.shapesIn {
+			if inside[k] {
+				continue
 			}
-		})
-		s.world.Checkpoints.Each(func(_ uint16, cp *world.Checkpoint) {
-			if cp.Inside[p.ID] && !inside[cp.Key()] {
-				delete(cp.Inside, p.ID)
-				s.emit("playerExitCheckpoint", pk, cp.Key())
+			delete(c.shapesIn, k)
+			switch k.Type {
+			case proto.EntityColshape:
+				if cs := s.world.Colshapes.Get(k.ID); cs != nil && cs.Inside[p.ID] {
+					delete(cs.Inside, p.ID)
+					s.emit("playerExitColshape", pk, k)
+				}
+			case proto.EntityCheckpoint:
+				if cp := s.world.Checkpoints.Get(k.ID); cp != nil && cp.Inside[p.ID] {
+					delete(cp.Inside, p.ID)
+					s.emit("playerExitCheckpoint", pk, k)
+				}
 			}
-		})
+		}
 		for k := range inside {
 			switch k.Type {
 			case proto.EntityColshape:
 				cs := s.world.Colshapes.Get(k.ID)
+				c.shapesIn[k] = struct{}{}
 				if !cs.Inside[p.ID] {
 					if cs.Inside == nil {
 						cs.Inside = map[uint16]bool{}
@@ -298,6 +309,7 @@ func (s *Server) updateShapes() {
 				}
 			case proto.EntityCheckpoint:
 				cp := s.world.Checkpoints.Get(k.ID)
+				c.shapesIn[k] = struct{}{}
 				if !cp.Inside[p.ID] {
 					if cp.Inside == nil {
 						cp.Inside = map[uint16]bool{}

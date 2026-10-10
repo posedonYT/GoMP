@@ -173,7 +173,7 @@ func (s *Server) onPedSync(c *client, m *proto.PedSync) {
 		c.badMessages++
 		return
 	}
-	if s.cfg.GoMP.AnticheatEnabled {
+	if s.cfg.GoMP.AnticheatEnabled && !c.acExempt {
 		if r := c.mover.CheckFoot(s.now, p.Pos, m.Pos, s.acLimits); !r.OK {
 			s.violation(c, "speed", r.Limit)
 			return

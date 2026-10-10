@@ -1,0 +1,88 @@
+{
+  "started": "2026-10-10T12:47:28.8792538+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "45s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "amd64",
+    "cpus": 12,
+    "go": "go1.27.1",
+    "os": "windows"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 2.218702576791472,
+    "deaths": 3385,
+    "gcPauseP99Ms": 0.5242880000000001,
+    "goroutines": 17,
+    "heapMB": 270.9802017211914,
+    "hitsPerSec": 343.1297676536967,
+    "hostCommandsPerSec": 149.80191988810176,
+    "hostEventsPerSec": 75.05617211681832,
+    "kbInPerPlayerSec": 1.3079354760769204,
+    "kbOutPerPlayerSec": 64.16147558919677,
+    "players": 1000,
+    "rssMB": 512.47265625,
+    "shotsPerSec": 599.1411600497925,
+    "syncDeferredPerSec": 0,
+    "syncInPerSec": 27676.34816267757,
+    "syncOutPerSec": 1494998.038284435,
+    "tickMaxMs": 22.281,
+    "tickP50Ms": 6.976,
+    "tickP99Ms": 13.791,
+    "vehicles": 200,
+    "violations": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1136.609,
+    "ped_p50": 67.1,
+    "ped_p95": 69.9,
+    "ped_p99": 100.2,
+    "samples": 8377288,
+    "veh_p50": 66.3,
+    "veh_p99": 73.8
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 21.248832000000043,
+    "resends": 8,
+    "syncMsgsPerBotPerSec": 1750.8892742856412
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 13.791,
+      "limit": 10,
+      "passed": false
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 22.281,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 100.2,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": false
+}

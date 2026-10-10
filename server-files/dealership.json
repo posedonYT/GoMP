@@ -1,0 +1,3746 @@
+{
+ "format": "gomp-dealership",
+ "version": 1,
+ "name": "Premium Deluxe Motorsport",
+ "marker": [
+  -33.7,
+  -1102,
+  26.42
+ ],
+ "radius": 2.5,
+ "preview": [
+  -47.5,
+  -1097.2,
+  25.9,
+  340
+ ],
+ "spawns": [
+  [
+   -28.6,
+   -1085.6,
+   26,
+   330
+  ],
+  [
+   -26,
+   -1082.3,
+   26.1,
+   67
+  ],
+  [
+   -19.3,
+   -1084.5,
+   26.1,
+   70
+  ],
+  [
+   -16,
+   -1085.5,
+   26.2,
+   70
+  ],
+  [
+   -28.8,
+   -1088.8,
+   26.1,
+   337
+  ]
+ ],
+ "colors": [
+  {
+   "id": 0,
+   "name": "Чёрный",
+   "rgb": "#0d1116"
+  },
+  {
+   "id": 111,
+   "name": "Белый",
+   "rgb": "#f0f0f0"
+  },
+  {
+   "id": 4,
+   "name": "Серебристый",
+   "rgb": "#b5b8bc"
+  },
+  {
+   "id": 5,
+   "name": "Графит",
+   "rgb": "#4a4c51"
+  },
+  {
+   "id": 27,
+   "name": "Красный",
+   "rgb": "#c00e1a"
+  },
+  {
+   "id": 38,
+   "name": "Оранжевый",
+   "rgb": "#e8611b"
+  },
+  {
+   "id": 88,
+   "name": "Жёлтый",
+   "rgb": "#f5c710"
+  },
+  {
+   "id": 53,
+   "name": "Зелёный",
+   "rgb": "#155c2d"
+  },
+  {
+   "id": 64,
+   "name": "Синий",
+   "rgb": "#14398c"
+  },
+  {
+   "id": 70,
+   "name": "Голубой",
+   "rgb": "#3b8fd6"
+  },
+  {
+   "id": 145,
+   "name": "Фиолетовый",
+   "rgb": "#621276"
+  },
+  {
+   "id": 96,
+   "name": "Коричневый",
+   "rgb": "#5b3a21"
+  }
+ ],
+ "vehicles": [
+  {
+   "model": "lada2107",
+   "cls": 1,
+   "price": 7000,
+   "custom": true,
+   "name": "ВАЗ-2107"
+  },
+  {
+   "model": "20rs7c8",
+   "cls": 1,
+   "price": 160000,
+   "custom": true,
+   "name": "Audi RS7 C8"
+  },
+  {
+   "model": "cullinan",
+   "cls": 2,
+   "price": 450000,
+   "custom": true,
+   "name": "Rolls-Royce Cullinan"
+  },
+  {
+   "model": "g37s",
+   "cls": 3,
+   "price": 45000,
+   "custom": true,
+   "name": "Infiniti G37S"
+  },
+  {
+   "model": "m5",
+   "cls": 3,
+   "price": 140000,
+   "custom": true,
+   "name": "BMW M5 F10"
+  },
+  {
+   "model": "bvss",
+   "cls": 6,
+   "price": 1500000,
+   "custom": true,
+   "name": "Bugatti Veyron"
+  },
+  {
+   "model": "krga",
+   "cls": 6,
+   "price": 2200000,
+   "custom": true,
+   "name": "Koenigsegg Regera"
+  },
+  {
+   "model": "agerars",
+   "cls": 7,
+   "price": 1800000,
+   "custom": true,
+   "name": "Koenigsegg Agera RS"
+  },
+  {
+   "model": "jesko",
+   "cls": 7,
+   "price": 2800000,
+   "custom": true,
+   "name": "Koenigsegg Jesko"
+  },
+  {
+   "model": "asbo",
+   "cls": 0,
+   "price": 12000,
+   "custom": false
+  },
+  {
+   "model": "dilettante",
+   "cls": 0,
+   "price": 13000,
+   "custom": false
+  },
+  {
+   "model": "dilettante2",
+   "cls": 0,
+   "price": 13000,
+   "custom": false
+  },
+  {
+   "model": "panto",
+   "cls": 0,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "rhapsody",
+   "cls": 0,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "blista",
+   "cls": 0,
+   "price": 14500,
+   "custom": false
+  },
+  {
+   "model": "brioso",
+   "cls": 0,
+   "price": 14500,
+   "custom": false
+  },
+  {
+   "model": "issi2",
+   "cls": 0,
+   "price": 14500,
+   "custom": false
+  },
+  {
+   "model": "prairie",
+   "cls": 0,
+   "price": 14500,
+   "custom": false
+  },
+  {
+   "model": "club",
+   "cls": 0,
+   "price": 16000,
+   "custom": false
+  },
+  {
+   "model": "kanjo",
+   "cls": 0,
+   "price": 16000,
+   "custom": false
+  },
+  {
+   "model": "emperor",
+   "cls": 1,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "emperor2",
+   "cls": 1,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "emperor3",
+   "cls": 1,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "regina",
+   "cls": 1,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "stafford",
+   "cls": 1,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "ingot",
+   "cls": 1,
+   "price": 18000,
+   "custom": false
+  },
+  {
+   "model": "romero",
+   "cls": 1,
+   "price": 18000,
+   "custom": false
+  },
+  {
+   "model": "driftchavosv6",
+   "cls": 1,
+   "price": 21000,
+   "custom": false
+  },
+  {
+   "model": "driftvorschlag",
+   "cls": 1,
+   "price": 22000,
+   "custom": false
+  },
+  {
+   "model": "stratum",
+   "cls": 1,
+   "price": 22000,
+   "custom": false
+  },
+  {
+   "model": "stretch",
+   "cls": 1,
+   "price": 22000,
+   "custom": false
+  },
+  {
+   "model": "drifthardy",
+   "cls": 1,
+   "price": 22500,
+   "custom": false
+  },
+  {
+   "model": "cognoscenti",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "cognoscenti2",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "primo",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "primo2",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "stanier",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "surge",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "warrener",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "washington",
+   "cls": 1,
+   "price": 24000,
+   "custom": false
+  },
+  {
+   "model": "schafter6",
+   "cls": 1,
+   "price": 25000,
+   "custom": false
+  },
+  {
+   "model": "impaler5",
+   "cls": 1,
+   "price": 26000,
+   "custom": false
+  },
+  {
+   "model": "asea",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "asea2",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "asterope",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "asterope2",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "cog55",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "cog552",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "fugitive",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "intruder",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "premier",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "schafter2",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "superd",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "tailgater",
+   "cls": 1,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "chavosv6",
+   "cls": 1,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "glendale",
+   "cls": 1,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "warrener2",
+   "cls": 1,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "glendale2",
+   "cls": 1,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "tailgater2",
+   "cls": 1,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "minimus",
+   "cls": 1,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "deity",
+   "cls": 1,
+   "price": 28500,
+   "custom": false
+  },
+  {
+   "model": "schafter5",
+   "cls": 1,
+   "price": 28500,
+   "custom": false
+  },
+  {
+   "model": "cinquemila",
+   "cls": 1,
+   "price": 30500,
+   "custom": false
+  },
+  {
+   "model": "rhinehart",
+   "cls": 1,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "vorschlaghammer",
+   "cls": 1,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "hardy",
+   "cls": 1,
+   "price": 32500,
+   "custom": false
+  },
+  {
+   "model": "sentinel6",
+   "cls": 1,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "merula",
+   "cls": 1,
+   "price": 39000,
+   "custom": false
+  },
+  {
+   "model": "aleutian",
+   "cls": 2,
+   "price": 30500,
+   "custom": false
+  },
+  {
+   "model": "cavalcade3",
+   "cls": 2,
+   "price": 32500,
+   "custom": false
+  },
+  {
+   "model": "cavalcade",
+   "cls": 2,
+   "price": 36000,
+   "custom": false
+  },
+  {
+   "model": "cavalcade2",
+   "cls": 2,
+   "price": 36000,
+   "custom": false
+  },
+  {
+   "model": "iwagen",
+   "cls": 2,
+   "price": 36500,
+   "custom": false
+  },
+  {
+   "model": "baller",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "bjxl",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "mesa",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "mesa2",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "patriot",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "patriot2",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "seminole",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "seminole2",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "serrano",
+   "cls": 2,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "xls",
+   "cls": 2,
+   "price": 39500,
+   "custom": false
+  },
+  {
+   "model": "xls2",
+   "cls": 2,
+   "price": 39500,
+   "custom": false
+  },
+  {
+   "model": "baller2",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "baller3",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "baller4",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "baller5",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "baller6",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "contender",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "fq2",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "gresley",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "landstalker",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "landstalker2",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "squaddie",
+   "cls": 2,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "huntley",
+   "cls": 2,
+   "price": 42500,
+   "custom": false
+  },
+  {
+   "model": "habanero",
+   "cls": 2,
+   "price": 43500,
+   "custom": false
+  },
+  {
+   "model": "rocoto",
+   "cls": 2,
+   "price": 45000,
+   "custom": false
+  },
+  {
+   "model": "baller7",
+   "cls": 2,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "baller8",
+   "cls": 2,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "dubsta",
+   "cls": 2,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "dubsta2",
+   "cls": 2,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "granger",
+   "cls": 2,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "radi",
+   "cls": 2,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "dorado",
+   "cls": 2,
+   "price": 47000,
+   "custom": false
+  },
+  {
+   "model": "granger2",
+   "cls": 2,
+   "price": 47500,
+   "custom": false
+  },
+  {
+   "model": "astron",
+   "cls": 2,
+   "price": 53000,
+   "custom": false
+  },
+  {
+   "model": "astron2",
+   "cls": 2,
+   "price": 53000,
+   "custom": false
+  },
+  {
+   "model": "issi8",
+   "cls": 2,
+   "price": 54000,
+   "custom": false
+  },
+  {
+   "model": "jubilee",
+   "cls": 2,
+   "price": 55500,
+   "custom": false
+  },
+  {
+   "model": "novak",
+   "cls": 2,
+   "price": 57000,
+   "custom": false
+  },
+  {
+   "model": "everon3",
+   "cls": 2,
+   "price": 58500,
+   "custom": false
+  },
+  {
+   "model": "toros",
+   "cls": 2,
+   "price": 59000,
+   "custom": false
+  },
+  {
+   "model": "warden",
+   "cls": 2,
+   "price": 59000,
+   "custom": false
+  },
+  {
+   "model": "vivanite",
+   "cls": 2,
+   "price": 60000,
+   "custom": false
+  },
+  {
+   "model": "rebla",
+   "cls": 2,
+   "price": 61500,
+   "custom": false
+  },
+  {
+   "model": "estride",
+   "cls": 2,
+   "price": 62000,
+   "custom": false
+  },
+  {
+   "model": "castigator",
+   "cls": 2,
+   "price": 63000,
+   "custom": false
+  },
+  {
+   "model": "woodlander",
+   "cls": 2,
+   "price": 64500,
+   "custom": false
+  },
+  {
+   "model": "postlude",
+   "cls": 3,
+   "price": 29000,
+   "custom": false
+  },
+  {
+   "model": "driftfr36",
+   "cls": 3,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "driftsentinel2",
+   "cls": 3,
+   "price": 30500,
+   "custom": false
+  },
+  {
+   "model": "kanjosj",
+   "cls": 3,
+   "price": 34500,
+   "custom": false
+  },
+  {
+   "model": "sentinel",
+   "cls": 3,
+   "price": 35000,
+   "custom": false
+  },
+  {
+   "model": "sentinel2",
+   "cls": 3,
+   "price": 35000,
+   "custom": false
+  },
+  {
+   "model": "jackal",
+   "cls": 3,
+   "price": 35500,
+   "custom": false
+  },
+  {
+   "model": "cogcabrio",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "exemplar",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "f620",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "felon",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "felon2",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "zion",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "zion2",
+   "cls": 3,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "previon",
+   "cls": 3,
+   "price": 40000,
+   "custom": false
+  },
+  {
+   "model": "oracle",
+   "cls": 3,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "oracle2",
+   "cls": 3,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "windsor",
+   "cls": 3,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "windsor2",
+   "cls": 3,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "eurosx32",
+   "cls": 3,
+   "price": 41000,
+   "custom": false
+  },
+  {
+   "model": "fr36",
+   "cls": 3,
+   "price": 42500,
+   "custom": false
+  },
+  {
+   "model": "clique2",
+   "cls": 4,
+   "price": 19500,
+   "custom": false
+  },
+  {
+   "model": "driftyosemite",
+   "cls": 4,
+   "price": 22500,
+   "custom": false
+  },
+  {
+   "model": "moonbeam",
+   "cls": 4,
+   "price": 22500,
+   "custom": false
+  },
+  {
+   "model": "moonbeam2",
+   "cls": 4,
+   "price": 22500,
+   "custom": false
+  },
+  {
+   "model": "broadway",
+   "cls": 4,
+   "price": 23000,
+   "custom": false
+  },
+  {
+   "model": "chino",
+   "cls": 4,
+   "price": 25000,
+   "custom": false
+  },
+  {
+   "model": "chino2",
+   "cls": 4,
+   "price": 25000,
+   "custom": false
+  },
+  {
+   "model": "voodoo",
+   "cls": 4,
+   "price": 25000,
+   "custom": false
+  },
+  {
+   "model": "voodoo2",
+   "cls": 4,
+   "price": 25000,
+   "custom": false
+  },
+  {
+   "model": "driftdominator10",
+   "cls": 4,
+   "price": 26500,
+   "custom": false
+  },
+  {
+   "model": "virgo",
+   "cls": 4,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "virgo2",
+   "cls": 4,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "virgo3",
+   "cls": 4,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "driftdominator8",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "picador",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "ratloader",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "ratloader2",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "slamvan",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "slamvan2",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "slamvan3",
+   "cls": 4,
+   "price": 27500,
+   "custom": false
+  },
+  {
+   "model": "brigham",
+   "cls": 4,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "driftdominator9",
+   "cls": 4,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "driftgauntlet4",
+   "cls": 4,
+   "price": 28500,
+   "custom": false
+  },
+  {
+   "model": "hermes",
+   "cls": 4,
+   "price": 28500,
+   "custom": false
+  },
+  {
+   "model": "yosemite",
+   "cls": 4,
+   "price": 28500,
+   "custom": false
+  },
+  {
+   "model": "eudora",
+   "cls": 4,
+   "price": 29000,
+   "custom": false
+  },
+  {
+   "model": "faction",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "faction2",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "faction3",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "hotknife",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "hustler",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "sabregt",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "sabregt2",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "tampa",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "vigero",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "yosemite2",
+   "cls": 4,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "ellie",
+   "cls": 4,
+   "price": 30500,
+   "custom": false
+  },
+  {
+   "model": "gauntlet3",
+   "cls": 4,
+   "price": 31000,
+   "custom": false
+  },
+  {
+   "model": "manana2",
+   "cls": 4,
+   "price": 31000,
+   "custom": false
+  },
+  {
+   "model": "greenwood",
+   "cls": 4,
+   "price": 31500,
+   "custom": false
+  },
+  {
+   "model": "dukes",
+   "cls": 4,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "dukes3",
+   "cls": 4,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "stalion",
+   "cls": 4,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "stalion2",
+   "cls": 4,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "blade",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "deviant",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "dominator",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "dominator3",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "dominator8",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "gauntlet",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "impaler6",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "nightshade",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "phoenix",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "ruiner",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "ruiner3",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "tampa3",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "vamos",
+   "cls": 4,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "buccaneer",
+   "cls": 4,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "buccaneer2",
+   "cls": 4,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "lurcher",
+   "cls": 4,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "dominator2",
+   "cls": 4,
+   "price": 34000,
+   "custom": false
+  },
+  {
+   "model": "gauntlet2",
+   "cls": 4,
+   "price": 34000,
+   "custom": false
+  },
+  {
+   "model": "tulip",
+   "cls": 4,
+   "price": 34000,
+   "custom": false
+  },
+  {
+   "model": "arbitergt",
+   "cls": 4,
+   "price": 35000,
+   "custom": false
+  },
+  {
+   "model": "peyote2",
+   "cls": 4,
+   "price": 35000,
+   "custom": false
+  },
+  {
+   "model": "clique",
+   "cls": 4,
+   "price": 35500,
+   "custom": false
+  },
+  {
+   "model": "coquette3",
+   "cls": 4,
+   "price": 36000,
+   "custom": false
+  },
+  {
+   "model": "dominator7",
+   "cls": 4,
+   "price": 36000,
+   "custom": false
+  },
+  {
+   "model": "impaler",
+   "cls": 4,
+   "price": 36000,
+   "custom": false
+  },
+  {
+   "model": "ruiner4",
+   "cls": 4,
+   "price": 36000,
+   "custom": false
+  },
+  {
+   "model": "dukes2",
+   "cls": 4,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "tahoma",
+   "cls": 4,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "tulip2",
+   "cls": 4,
+   "price": 37000,
+   "custom": false
+  },
+  {
+   "model": "dominator10",
+   "cls": 4,
+   "price": 37500,
+   "custom": false
+  },
+  {
+   "model": "gauntlet4",
+   "cls": 4,
+   "price": 38500,
+   "custom": false
+  },
+  {
+   "model": "buffalo5",
+   "cls": 4,
+   "price": 39500,
+   "custom": false
+  },
+  {
+   "model": "gauntlet5",
+   "cls": 4,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "vigero2",
+   "cls": 4,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "vigero3",
+   "cls": 4,
+   "price": 40500,
+   "custom": false
+  },
+  {
+   "model": "buffalo4",
+   "cls": 4,
+   "price": 41500,
+   "custom": false
+  },
+  {
+   "model": "tampa4",
+   "cls": 4,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "weevil2",
+   "cls": 4,
+   "price": 42000,
+   "custom": false
+  },
+  {
+   "model": "dominator9",
+   "cls": 4,
+   "price": 43000,
+   "custom": false
+  },
+  {
+   "model": "dynasty",
+   "cls": 5,
+   "price": 45500,
+   "custom": false
+  },
+  {
+   "model": "fagaloa",
+   "cls": 5,
+   "price": 47500,
+   "custom": false
+  },
+  {
+   "model": "btype",
+   "cls": 5,
+   "price": 52500,
+   "custom": false
+  },
+  {
+   "model": "btype3",
+   "cls": 5,
+   "price": 52500,
+   "custom": false
+  },
+  {
+   "model": "manana",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "peyote",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "tornado",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "tornado2",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "tornado3",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "tornado4",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "tornado5",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "tornado6",
+   "cls": 5,
+   "price": 58000,
+   "custom": false
+  },
+  {
+   "model": "driftcheburek",
+   "cls": 5,
+   "price": 62000,
+   "custom": false
+  },
+  {
+   "model": "driftjester3",
+   "cls": 5,
+   "price": 62500,
+   "custom": false
+  },
+  {
+   "model": "btype2",
+   "cls": 5,
+   "price": 64000,
+   "custom": false
+  },
+  {
+   "model": "driftnebula",
+   "cls": 5,
+   "price": 65000,
+   "custom": false
+  },
+  {
+   "model": "feltzer3",
+   "cls": 5,
+   "price": 67500,
+   "custom": false
+  },
+  {
+   "model": "nebula",
+   "cls": 5,
+   "price": 67500,
+   "custom": false
+  },
+  {
+   "model": "cheburek",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "deluxo",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "michelli",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "peyote3",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "retinue",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "savestra",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "z190",
+   "cls": 5,
+   "price": 70000,
+   "custom": false
+  },
+  {
+   "model": "gt500",
+   "cls": 5,
+   "price": 70500,
+   "custom": false
+  },
+  {
+   "model": "retinue2",
+   "cls": 5,
+   "price": 76500,
+   "custom": false
+  },
+  {
+   "model": "stinger",
+   "cls": 5,
+   "price": 76500,
+   "custom": false
+  },
+  {
+   "model": "stingergt",
+   "cls": 5,
+   "price": 76500,
+   "custom": false
+  },
+  {
+   "model": "ardent",
+   "cls": 5,
+   "price": 80500,
+   "custom": false
+  },
+  {
+   "model": "mamba",
+   "cls": 5,
+   "price": 80500,
+   "custom": false
+  },
+  {
+   "model": "pigalle",
+   "cls": 5,
+   "price": 82000,
+   "custom": false
+  },
+  {
+   "model": "zion3",
+   "cls": 5,
+   "price": 82000,
+   "custom": false
+  },
+  {
+   "model": "infernus2",
+   "cls": 5,
+   "price": 82500,
+   "custom": false
+  },
+  {
+   "model": "rapidgt3",
+   "cls": 5,
+   "price": 82500,
+   "custom": false
+  },
+  {
+   "model": "torero",
+   "cls": 5,
+   "price": 82500,
+   "custom": false
+  },
+  {
+   "model": "jb700",
+   "cls": 5,
+   "price": 83000,
+   "custom": false
+  },
+  {
+   "model": "jb7002",
+   "cls": 5,
+   "price": 83000,
+   "custom": false
+  },
+  {
+   "model": "monroe",
+   "cls": 5,
+   "price": 83000,
+   "custom": false
+  },
+  {
+   "model": "casco",
+   "cls": 5,
+   "price": 84500,
+   "custom": false
+  },
+  {
+   "model": "coquette2",
+   "cls": 5,
+   "price": 84500,
+   "custom": false
+  },
+  {
+   "model": "cheetah2",
+   "cls": 5,
+   "price": 86000,
+   "custom": false
+  },
+  {
+   "model": "cheetah3",
+   "cls": 5,
+   "price": 86000,
+   "custom": false
+  },
+  {
+   "model": "turismo2",
+   "cls": 5,
+   "price": 86500,
+   "custom": false
+  },
+  {
+   "model": "ztype",
+   "cls": 5,
+   "price": 89000,
+   "custom": false
+  },
+  {
+   "model": "uranus",
+   "cls": 5,
+   "price": 90500,
+   "custom": false
+  },
+  {
+   "model": "viseris",
+   "cls": 5,
+   "price": 91000,
+   "custom": false
+  },
+  {
+   "model": "itali2",
+   "cls": 5,
+   "price": 91500,
+   "custom": false
+  },
+  {
+   "model": "jester3",
+   "cls": 5,
+   "price": 91500,
+   "custom": false
+  },
+  {
+   "model": "coquette5",
+   "cls": 5,
+   "price": 97500,
+   "custom": false
+  },
+  {
+   "model": "swinger",
+   "cls": 5,
+   "price": 97500,
+   "custom": false
+  },
+  {
+   "model": "gt750",
+   "cls": 5,
+   "price": 99500,
+   "custom": false
+  },
+  {
+   "model": "astrale",
+   "cls": 5,
+   "price": 108000,
+   "custom": false
+  },
+  {
+   "model": "veto",
+   "cls": 6,
+   "price": 55000,
+   "custom": false
+  },
+  {
+   "model": "veto2",
+   "cls": 6,
+   "price": 55000,
+   "custom": false
+  },
+  {
+   "model": "blista2",
+   "cls": 6,
+   "price": 80000,
+   "custom": false
+  },
+  {
+   "model": "blista3",
+   "cls": 6,
+   "price": 80000,
+   "custom": false
+  },
+  {
+   "model": "driftjester",
+   "cls": 6,
+   "price": 80500,
+   "custom": false
+  },
+  {
+   "model": "driftzr350",
+   "cls": 6,
+   "price": 81000,
+   "custom": false
+  },
+  {
+   "model": "driftfuto",
+   "cls": 6,
+   "price": 81500,
+   "custom": false
+  },
+  {
+   "model": "driftfuto2",
+   "cls": 6,
+   "price": 81500,
+   "custom": false
+  },
+  {
+   "model": "driftrt3000",
+   "cls": 6,
+   "price": 81500,
+   "custom": false
+  },
+  {
+   "model": "driftcypher",
+   "cls": 6,
+   "price": 82000,
+   "custom": false
+  },
+  {
+   "model": "driftsentinel",
+   "cls": 6,
+   "price": 83000,
+   "custom": false
+  },
+  {
+   "model": "driftelegy",
+   "cls": 6,
+   "price": 83500,
+   "custom": false
+  },
+  {
+   "model": "drifteuros",
+   "cls": 6,
+   "price": 84500,
+   "custom": false
+  },
+  {
+   "model": "futo",
+   "cls": 6,
+   "price": 84500,
+   "custom": false
+  },
+  {
+   "model": "driftcoquette",
+   "cls": 6,
+   "price": 87500,
+   "custom": false
+  },
+  {
+   "model": "futo2",
+   "cls": 6,
+   "price": 87500,
+   "custom": false
+  },
+  {
+   "model": "driftremus",
+   "cls": 6,
+   "price": 90500,
+   "custom": false
+  },
+  {
+   "model": "drifttampa",
+   "cls": 6,
+   "price": 91000,
+   "custom": false
+  },
+  {
+   "model": "coureur",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "khamelion",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "kuruma2",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "penumbra",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "raptor",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "revolter",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "sentinel3",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "streiter",
+   "cls": 6,
+   "price": 92500,
+   "custom": false
+  },
+  {
+   "model": "penumbra2",
+   "cls": 6,
+   "price": 96000,
+   "custom": false
+  },
+  {
+   "model": "schafter4",
+   "cls": 6,
+   "price": 96000,
+   "custom": false
+  },
+  {
+   "model": "kuruma",
+   "cls": 6,
+   "price": 97500,
+   "custom": false
+  },
+  {
+   "model": "buffalo",
+   "cls": 6,
+   "price": 101000,
+   "custom": false
+  },
+  {
+   "model": "buffalo2",
+   "cls": 6,
+   "price": 101000,
+   "custom": false
+  },
+  {
+   "model": "sultan",
+   "cls": 6,
+   "price": 101000,
+   "custom": false
+  },
+  {
+   "model": "sultan2",
+   "cls": 6,
+   "price": 101000,
+   "custom": false
+  },
+  {
+   "model": "sultan3",
+   "cls": 6,
+   "price": 103500,
+   "custom": false
+  },
+  {
+   "model": "remus",
+   "cls": 6,
+   "price": 104000,
+   "custom": false
+  },
+  {
+   "model": "sentinel4",
+   "cls": 6,
+   "price": 104000,
+   "custom": false
+  },
+  {
+   "model": "buffalo3",
+   "cls": 6,
+   "price": 104500,
+   "custom": false
+  },
+  {
+   "model": "schwarzer",
+   "cls": 6,
+   "price": 104500,
+   "custom": false
+  },
+  {
+   "model": "cypher",
+   "cls": 6,
+   "price": 106000,
+   "custom": false
+  },
+  {
+   "model": "banshee",
+   "cls": 6,
+   "price": 106500,
+   "custom": false
+  },
+  {
+   "model": "elegy",
+   "cls": 6,
+   "price": 106500,
+   "custom": false
+  },
+  {
+   "model": "issi7",
+   "cls": 6,
+   "price": 106500,
+   "custom": false
+  },
+  {
+   "model": "ruston",
+   "cls": 6,
+   "price": 106500,
+   "custom": false
+  },
+  {
+   "model": "imorgon",
+   "cls": 6,
+   "price": 107500,
+   "custom": false
+  },
+  {
+   "model": "vectre",
+   "cls": 6,
+   "price": 107500,
+   "custom": false
+  },
+  {
+   "model": "fusilade",
+   "cls": 6,
+   "price": 108000,
+   "custom": false
+  },
+  {
+   "model": "rt3000",
+   "cls": 6,
+   "price": 108000,
+   "custom": false
+  },
+  {
+   "model": "calico",
+   "cls": 6,
+   "price": 109500,
+   "custom": false
+  },
+  {
+   "model": "euros",
+   "cls": 6,
+   "price": 109500,
+   "custom": false
+  },
+  {
+   "model": "omnisegt",
+   "cls": 6,
+   "price": 109500,
+   "custom": false
+  },
+  {
+   "model": "zr350",
+   "cls": 6,
+   "price": 109500,
+   "custom": false
+  },
+  {
+   "model": "alpha",
+   "cls": 6,
+   "price": 110000,
+   "custom": false
+  },
+  {
+   "model": "drafter",
+   "cls": 6,
+   "price": 110000,
+   "custom": false
+  },
+  {
+   "model": "schafter3",
+   "cls": 6,
+   "price": 110000,
+   "custom": false
+  },
+  {
+   "model": "tampa2",
+   "cls": 6,
+   "price": 110000,
+   "custom": false
+  },
+  {
+   "model": "verlierer2",
+   "cls": 6,
+   "price": 110000,
+   "custom": false
+  },
+  {
+   "model": "r300",
+   "cls": 6,
+   "price": 113000,
+   "custom": false
+  },
+  {
+   "model": "s95",
+   "cls": 6,
+   "price": 113000,
+   "custom": false
+  },
+  {
+   "model": "comet2",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "comet3",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "comet4",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "coquette",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "elegy2",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "flashgt",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "furoregt",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "gb200",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "omnis",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "rapidgt",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "rapidgt2",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "tropos",
+   "cls": 6,
+   "price": 113500,
+   "custom": false
+  },
+  {
+   "model": "jester4",
+   "cls": 6,
+   "price": 114500,
+   "custom": false
+  },
+  {
+   "model": "jester5",
+   "cls": 6,
+   "price": 114500,
+   "custom": false
+  },
+  {
+   "model": "feltzer2",
+   "cls": 6,
+   "price": 115500,
+   "custom": false
+  },
+  {
+   "model": "growler",
+   "cls": 6,
+   "price": 117000,
+   "custom": false
+  },
+  {
+   "model": "locust",
+   "cls": 6,
+   "price": 119000,
+   "custom": false
+  },
+  {
+   "model": "bestiagts",
+   "cls": 6,
+   "price": 119500,
+   "custom": false
+  },
+  {
+   "model": "ninef",
+   "cls": 6,
+   "price": 119500,
+   "custom": false
+  },
+  {
+   "model": "ninef2",
+   "cls": 6,
+   "price": 119500,
+   "custom": false
+  },
+  {
+   "model": "pariah",
+   "cls": 6,
+   "price": 119500,
+   "custom": false
+  },
+  {
+   "model": "specter",
+   "cls": 6,
+   "price": 119500,
+   "custom": false
+  },
+  {
+   "model": "surano",
+   "cls": 6,
+   "price": 119500,
+   "custom": false
+  },
+  {
+   "model": "specter2",
+   "cls": 6,
+   "price": 120000,
+   "custom": false
+  },
+  {
+   "model": "comet7",
+   "cls": 6,
+   "price": 121500,
+   "custom": false
+  },
+  {
+   "model": "komoda",
+   "cls": 6,
+   "price": 121500,
+   "custom": false
+  },
+  {
+   "model": "massacro",
+   "cls": 6,
+   "price": 121500,
+   "custom": false
+  },
+  {
+   "model": "massacro2",
+   "cls": 6,
+   "price": 121500,
+   "custom": false
+  },
+  {
+   "model": "sugoi",
+   "cls": 6,
+   "price": 121500,
+   "custom": false
+  },
+  {
+   "model": "comet6",
+   "cls": 6,
+   "price": 122000,
+   "custom": false
+  },
+  {
+   "model": "raiden",
+   "cls": 6,
+   "price": 122000,
+   "custom": false
+  },
+  {
+   "model": "neon",
+   "cls": 6,
+   "price": 122500,
+   "custom": false
+  },
+  {
+   "model": "lynx",
+   "cls": 6,
+   "price": 123500,
+   "custom": false
+  },
+  {
+   "model": "comet5",
+   "cls": 6,
+   "price": 124500,
+   "custom": false
+  },
+  {
+   "model": "jugular",
+   "cls": 6,
+   "price": 124500,
+   "custom": false
+  },
+  {
+   "model": "panthere",
+   "cls": 6,
+   "price": 125000,
+   "custom": false
+  },
+  {
+   "model": "carbonizzare",
+   "cls": 6,
+   "price": 125500,
+   "custom": false
+  },
+  {
+   "model": "jester",
+   "cls": 6,
+   "price": 125500,
+   "custom": false
+  },
+  {
+   "model": "jester2",
+   "cls": 6,
+   "price": 125500,
+   "custom": false
+  },
+  {
+   "model": "hotring",
+   "cls": 6,
+   "price": 127000,
+   "custom": false
+  },
+  {
+   "model": "seven70",
+   "cls": 6,
+   "price": 127000,
+   "custom": false
+  },
+  {
+   "model": "schlagen",
+   "cls": 6,
+   "price": 127500,
+   "custom": false
+  },
+  {
+   "model": "tenf",
+   "cls": 6,
+   "price": 128000,
+   "custom": false
+  },
+  {
+   "model": "vstr",
+   "cls": 6,
+   "price": 128000,
+   "custom": false
+  },
+  {
+   "model": "paragon3",
+   "cls": 6,
+   "price": 128500,
+   "custom": false
+  },
+  {
+   "model": "paragon",
+   "cls": 6,
+   "price": 129000,
+   "custom": false
+  },
+  {
+   "model": "coquette4",
+   "cls": 6,
+   "price": 129500,
+   "custom": false
+  },
+  {
+   "model": "paragon2",
+   "cls": 6,
+   "price": 129500,
+   "custom": false
+  },
+  {
+   "model": "tenf2",
+   "cls": 6,
+   "price": 130000,
+   "custom": false
+  },
+  {
+   "model": "gauntlet6",
+   "cls": 6,
+   "price": 131000,
+   "custom": false
+  },
+  {
+   "model": "neo",
+   "cls": 6,
+   "price": 131000,
+   "custom": false
+  },
+  {
+   "model": "sm722",
+   "cls": 6,
+   "price": 131000,
+   "custom": false
+  },
+  {
+   "model": "italigto",
+   "cls": 6,
+   "price": 131500,
+   "custom": false
+  },
+  {
+   "model": "everon2",
+   "cls": 6,
+   "price": 132000,
+   "custom": false
+  },
+  {
+   "model": "stingertt",
+   "cls": 6,
+   "price": 133500,
+   "custom": false
+  },
+  {
+   "model": "corsita",
+   "cls": 6,
+   "price": 135000,
+   "custom": false
+  },
+  {
+   "model": "italirsx",
+   "cls": 6,
+   "price": 135500,
+   "custom": false
+  },
+  {
+   "model": "sentinel5",
+   "cls": 6,
+   "price": 143000,
+   "custom": false
+  },
+  {
+   "model": "niobe",
+   "cls": 6,
+   "price": 144000,
+   "custom": false
+  },
+  {
+   "model": "rapidgt4",
+   "cls": 6,
+   "price": 144000,
+   "custom": false
+  },
+  {
+   "model": "coquette6",
+   "cls": 6,
+   "price": 144500,
+   "custom": false
+  },
+  {
+   "model": "envisage",
+   "cls": 6,
+   "price": 161500,
+   "custom": false
+  },
+  {
+   "model": "cartuccia",
+   "cls": 6,
+   "price": 170000,
+   "custom": false
+  },
+  {
+   "model": "banshee3",
+   "cls": 6,
+   "price": 180000,
+   "custom": false
+  },
+  {
+   "model": "voltic",
+   "cls": 7,
+   "price": 355500,
+   "custom": false
+  },
+  {
+   "model": "sultanrs",
+   "cls": 7,
+   "price": 374000,
+   "custom": false
+  },
+  {
+   "model": "banshee2",
+   "cls": 7,
+   "price": 387000,
+   "custom": false
+  },
+  {
+   "model": "infernus",
+   "cls": 7,
+   "price": 387000,
+   "custom": false
+  },
+  {
+   "model": "bullet",
+   "cls": 7,
+   "price": 400000,
+   "custom": false
+  },
+  {
+   "model": "vacca",
+   "cls": 7,
+   "price": 400000,
+   "custom": false
+  },
+  {
+   "model": "cheetah",
+   "cls": 7,
+   "price": 406500,
+   "custom": false
+  },
+  {
+   "model": "turismo3",
+   "cls": 7,
+   "price": 406500,
+   "custom": false
+  },
+  {
+   "model": "entityxf",
+   "cls": 7,
+   "price": 420000,
+   "custom": false
+  },
+  {
+   "model": "turismor",
+   "cls": 7,
+   "price": 420000,
+   "custom": false
+  },
+  {
+   "model": "tempesta",
+   "cls": 7,
+   "price": 433500,
+   "custom": false
+  },
+  {
+   "model": "cyclone",
+   "cls": 7,
+   "price": 440500,
+   "custom": false
+  },
+  {
+   "model": "fmj",
+   "cls": 7,
+   "price": 443500,
+   "custom": false
+  },
+  {
+   "model": "sheava",
+   "cls": 7,
+   "price": 444000,
+   "custom": false
+  },
+  {
+   "model": "thrax",
+   "cls": 7,
+   "price": 444000,
+   "custom": false
+  },
+  {
+   "model": "italigtb",
+   "cls": 7,
+   "price": 447500,
+   "custom": false
+  },
+  {
+   "model": "reaper",
+   "cls": 7,
+   "price": 447500,
+   "custom": false
+  },
+  {
+   "model": "sc1",
+   "cls": 7,
+   "price": 447500,
+   "custom": false
+  },
+  {
+   "model": "zentorno",
+   "cls": 7,
+   "price": 447500,
+   "custom": false
+  },
+  {
+   "model": "osiris",
+   "cls": 7,
+   "price": 448500,
+   "custom": false
+  },
+  {
+   "model": "italigtb2",
+   "cls": 7,
+   "price": 449000,
+   "custom": false
+  },
+  {
+   "model": "xa21",
+   "cls": 7,
+   "price": 449000,
+   "custom": false
+  },
+  {
+   "model": "pfister811",
+   "cls": 7,
+   "price": 449500,
+   "custom": false
+  },
+  {
+   "model": "t20",
+   "cls": 7,
+   "price": 449500,
+   "custom": false
+  },
+  {
+   "model": "penetrator",
+   "cls": 7,
+   "price": 451000,
+   "custom": false
+  },
+  {
+   "model": "adder",
+   "cls": 7,
+   "price": 454500,
+   "custom": false
+  },
+  {
+   "model": "nero",
+   "cls": 7,
+   "price": 454500,
+   "custom": false
+  },
+  {
+   "model": "visione",
+   "cls": 7,
+   "price": 454500,
+   "custom": false
+  },
+  {
+   "model": "nero2",
+   "cls": 7,
+   "price": 456000,
+   "custom": false
+  },
+  {
+   "model": "ignus",
+   "cls": 7,
+   "price": 456500,
+   "custom": false
+  },
+  {
+   "model": "ignus2",
+   "cls": 7,
+   "price": 456500,
+   "custom": false
+  },
+  {
+   "model": "gp1",
+   "cls": 7,
+   "price": 458500,
+   "custom": false
+  },
+  {
+   "model": "virtue",
+   "cls": 7,
+   "price": 459500,
+   "custom": false
+  },
+  {
+   "model": "champion",
+   "cls": 7,
+   "price": 460500,
+   "custom": false
+  },
+  {
+   "model": "vagner",
+   "cls": 7,
+   "price": 461000,
+   "custom": false
+  },
+  {
+   "model": "autarch",
+   "cls": 7,
+   "price": 462000,
+   "custom": false
+  },
+  {
+   "model": "le7b",
+   "cls": 7,
+   "price": 462000,
+   "custom": false
+  },
+  {
+   "model": "prototipo",
+   "cls": 7,
+   "price": 462000,
+   "custom": false
+  },
+  {
+   "model": "tyrus",
+   "cls": 7,
+   "price": 462000,
+   "custom": false
+  },
+  {
+   "model": "zorrusso",
+   "cls": 7,
+   "price": 462000,
+   "custom": false
+  },
+  {
+   "model": "tigon",
+   "cls": 7,
+   "price": 462500,
+   "custom": false
+  },
+  {
+   "model": "furia",
+   "cls": 7,
+   "price": 463500,
+   "custom": false
+  },
+  {
+   "model": "torero2",
+   "cls": 7,
+   "price": 463500,
+   "custom": false
+  },
+  {
+   "model": "emerus",
+   "cls": 7,
+   "price": 464000,
+   "custom": false
+  },
+  {
+   "model": "cyclone2",
+   "cls": 7,
+   "price": 464500,
+   "custom": false
+  },
+  {
+   "model": "krieger",
+   "cls": 7,
+   "price": 467500,
+   "custom": false
+  },
+  {
+   "model": "s80",
+   "cls": 7,
+   "price": 471000,
+   "custom": false
+  },
+  {
+   "model": "lm87",
+   "cls": 7,
+   "price": 475000,
+   "custom": false
+  },
+  {
+   "model": "zeno",
+   "cls": 7,
+   "price": 475000,
+   "custom": false
+  },
+  {
+   "model": "tyrant",
+   "cls": 7,
+   "price": 491000,
+   "custom": false
+  },
+  {
+   "model": "pipistrello",
+   "cls": 7,
+   "price": 498500,
+   "custom": false
+  },
+  {
+   "model": "tezeract",
+   "cls": 7,
+   "price": 521500,
+   "custom": false
+  },
+  {
+   "model": "deveste",
+   "cls": 7,
+   "price": 529000,
+   "custom": false
+  },
+  {
+   "model": "entity2",
+   "cls": 7,
+   "price": 529000,
+   "custom": false
+  },
+  {
+   "model": "suzume",
+   "cls": 7,
+   "price": 529000,
+   "custom": false
+  },
+  {
+   "model": "taipan",
+   "cls": 7,
+   "price": 531000,
+   "custom": false
+  },
+  {
+   "model": "entity3",
+   "cls": 7,
+   "price": 545000,
+   "custom": false
+  },
+  {
+   "model": "xtreme",
+   "cls": 7,
+   "price": 561000,
+   "custom": false
+  },
+  {
+   "model": "lrcgt",
+   "cls": 7,
+   "price": 569000,
+   "custom": false
+  },
+  {
+   "model": "fmj2",
+   "cls": 7,
+   "price": 581000,
+   "custom": false
+  },
+  {
+   "model": "horus",
+   "cls": 7,
+   "price": 581000,
+   "custom": false
+  },
+  {
+   "model": "luiva",
+   "cls": 7,
+   "price": 610500,
+   "custom": false
+  },
+  {
+   "model": "velenogt",
+   "cls": 7,
+   "price": 646500,
+   "custom": false
+  },
+  {
+   "model": "faggio",
+   "cls": 8,
+   "price": 7000,
+   "custom": false
+  },
+  {
+   "model": "faggio2",
+   "cls": 8,
+   "price": 7000,
+   "custom": false
+  },
+  {
+   "model": "faggio3",
+   "cls": 8,
+   "price": 7000,
+   "custom": false
+  },
+  {
+   "model": "pizzaboy",
+   "cls": 8,
+   "price": 7000,
+   "custom": false
+  },
+  {
+   "model": "enduro",
+   "cls": 8,
+   "price": 10000,
+   "custom": false
+  },
+  {
+   "model": "sanchez",
+   "cls": 8,
+   "price": 10000,
+   "custom": false
+  },
+  {
+   "model": "sanchez2",
+   "cls": 8,
+   "price": 10000,
+   "custom": false
+  },
+  {
+   "model": "bagger",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "manchez2",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "manchez3",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "pcj",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "powersurge",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "ratbike",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "stryder",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "wolfsbane",
+   "cls": 8,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "avarus",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "chimera",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "daemon",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "daemon2",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "hexer",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "innovation",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "sovereign",
+   "cls": 8,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "zombiea",
+   "cls": 8,
+   "price": 14500,
+   "custom": false
+  },
+  {
+   "model": "zombieb",
+   "cls": 8,
+   "price": 14500,
+   "custom": false
+  },
+  {
+   "model": "fcr",
+   "cls": 8,
+   "price": 15500,
+   "custom": false
+  },
+  {
+   "model": "fcr2",
+   "cls": 8,
+   "price": 15500,
+   "custom": false
+  },
+  {
+   "model": "lectro",
+   "cls": 8,
+   "price": 15500,
+   "custom": false
+  },
+  {
+   "model": "nemesis",
+   "cls": 8,
+   "price": 15500,
+   "custom": false
+  },
+  {
+   "model": "ruffian",
+   "cls": 8,
+   "price": 15500,
+   "custom": false
+  },
+  {
+   "model": "vader",
+   "cls": 8,
+   "price": 15500,
+   "custom": false
+  },
+  {
+   "model": "diablous",
+   "cls": 8,
+   "price": 16000,
+   "custom": false
+  },
+  {
+   "model": "diablous2",
+   "cls": 8,
+   "price": 16000,
+   "custom": false
+  },
+  {
+   "model": "nightblade",
+   "cls": 8,
+   "price": 16000,
+   "custom": false
+  },
+  {
+   "model": "rrocket",
+   "cls": 8,
+   "price": 16000,
+   "custom": false
+  },
+  {
+   "model": "akuma",
+   "cls": 8,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "bf400",
+   "cls": 8,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "carbonrs",
+   "cls": 8,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "esskey",
+   "cls": 8,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "manchez",
+   "cls": 8,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "sanctus",
+   "cls": 8,
+   "price": 16500,
+   "custom": false
+  },
+  {
+   "model": "cliffhanger",
+   "cls": 8,
+   "price": 17500,
+   "custom": false
+  },
+  {
+   "model": "defiler",
+   "cls": 8,
+   "price": 17500,
+   "custom": false
+  },
+  {
+   "model": "double",
+   "cls": 8,
+   "price": 17500,
+   "custom": false
+  },
+  {
+   "model": "gargoyle",
+   "cls": 8,
+   "price": 17500,
+   "custom": false
+  },
+  {
+   "model": "vindicator",
+   "cls": 8,
+   "price": 17500,
+   "custom": false
+  },
+  {
+   "model": "vortex",
+   "cls": 8,
+   "price": 17500,
+   "custom": false
+  },
+  {
+   "model": "bati",
+   "cls": 8,
+   "price": 18000,
+   "custom": false
+  },
+  {
+   "model": "bati2",
+   "cls": 8,
+   "price": 18000,
+   "custom": false
+  },
+  {
+   "model": "reever",
+   "cls": 8,
+   "price": 18500,
+   "custom": false
+  },
+  {
+   "model": "hakuchou",
+   "cls": 8,
+   "price": 19000,
+   "custom": false
+  },
+  {
+   "model": "thrust",
+   "cls": 8,
+   "price": 19000,
+   "custom": false
+  },
+  {
+   "model": "shinobi",
+   "cls": 8,
+   "price": 20000,
+   "custom": false
+  },
+  {
+   "model": "hakuchou2",
+   "cls": 8,
+   "price": 21000,
+   "custom": false
+  },
+  {
+   "model": "shotaro",
+   "cls": 8,
+   "price": 21000,
+   "custom": false
+  },
+  {
+   "model": "winky",
+   "cls": 9,
+   "price": 14000,
+   "custom": false
+  },
+  {
+   "model": "blazer2",
+   "cls": 9,
+   "price": 18500,
+   "custom": false
+  },
+  {
+   "model": "marshall",
+   "cls": 9,
+   "price": 18500,
+   "custom": false
+  },
+  {
+   "model": "monster",
+   "cls": 9,
+   "price": 18500,
+   "custom": false
+  },
+  {
+   "model": "verus",
+   "cls": 9,
+   "price": 20500,
+   "custom": false
+  },
+  {
+   "model": "outlaw",
+   "cls": 9,
+   "price": 21500,
+   "custom": false
+  },
+  {
+   "model": "blazer",
+   "cls": 9,
+   "price": 23000,
+   "custom": false
+  },
+  {
+   "model": "blazer3",
+   "cls": 9,
+   "price": 23000,
+   "custom": false
+  },
+  {
+   "model": "kalahari",
+   "cls": 9,
+   "price": 23000,
+   "custom": false
+  },
+  {
+   "model": "blazer4",
+   "cls": 9,
+   "price": 25500,
+   "custom": false
+  },
+  {
+   "model": "dloader",
+   "cls": 9,
+   "price": 25500,
+   "custom": false
+  },
+  {
+   "model": "patriot3",
+   "cls": 9,
+   "price": 27000,
+   "custom": false
+  },
+  {
+   "model": "bfinjection",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "insurgent2",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "mesa3",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "rancherxl",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "rancherxl2",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "rebel",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "rebel2",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "sandking",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "sandking2",
+   "cls": 9,
+   "price": 28000,
+   "custom": false
+  },
+  {
+   "model": "l35",
+   "cls": 9,
+   "price": 29000,
+   "custom": false
+  },
+  {
+   "model": "driftl352",
+   "cls": 9,
+   "price": 29500,
+   "custom": false
+  },
+  {
+   "model": "bodhi2",
+   "cls": 9,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "hellion",
+   "cls": 9,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "kamacho",
+   "cls": 9,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "yosemite1500",
+   "cls": 9,
+   "price": 30000,
+   "custom": false
+  },
+  {
+   "model": "dune",
+   "cls": 9,
+   "price": 31000,
+   "custom": false
+  },
+  {
+   "model": "dune2",
+   "cls": 9,
+   "price": 31000,
+   "custom": false
+  },
+  {
+   "model": "freecrawler",
+   "cls": 9,
+   "price": 31000,
+   "custom": false
+  },
+  {
+   "model": "riata",
+   "cls": 9,
+   "price": 31000,
+   "custom": false
+  },
+  {
+   "model": "bifta",
+   "cls": 9,
+   "price": 31500,
+   "custom": false
+  },
+  {
+   "model": "everon",
+   "cls": 9,
+   "price": 31500,
+   "custom": false
+  },
+  {
+   "model": "dubsta3",
+   "cls": 9,
+   "price": 32000,
+   "custom": false
+  },
+  {
+   "model": "caracara2",
+   "cls": 9,
+   "price": 32500,
+   "custom": false
+  },
+  {
+   "model": "l352",
+   "cls": 9,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "yosemite3",
+   "cls": 9,
+   "price": 33000,
+   "custom": false
+  },
+  {
+   "model": "brawler",
+   "cls": 9,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "nightshark",
+   "cls": 9,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "trophytruck",
+   "cls": 9,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "trophytruck2",
+   "cls": 9,
+   "price": 33500,
+   "custom": false
+  },
+  {
+   "model": "monstrociti",
+   "cls": 9,
+   "price": 34500,
+   "custom": false
+  },
+  {
+   "model": "ratel",
+   "cls": 9,
+   "price": 35500,
+   "custom": false
+  },
+  {
+   "model": "firebolt",
+   "cls": 9,
+   "price": 36500,
+   "custom": false
+  },
+  {
+   "model": "draugur",
+   "cls": 9,
+   "price": 38000,
+   "custom": false
+  },
+  {
+   "model": "terminus",
+   "cls": 9,
+   "price": 38500,
+   "custom": false
+  },
+  {
+   "model": "boor",
+   "cls": 9,
+   "price": 39500,
+   "custom": false
+  },
+  {
+   "model": "vagrant",
+   "cls": 9,
+   "price": 40000,
+   "custom": false
+  },
+  {
+   "model": "boxville",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "boxville2",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "boxville3",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "boxville4",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "boxville6",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "camper",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "journey",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "journey2",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "surfer",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "surfer2",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "surfer3",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "taco",
+   "cls": 12,
+   "price": 12500,
+   "custom": false
+  },
+  {
+   "model": "youga",
+   "cls": 12,
+   "price": 20000,
+   "custom": false
+  },
+  {
+   "model": "youga2",
+   "cls": 12,
+   "price": 20000,
+   "custom": false
+  },
+  {
+   "model": "youga3",
+   "cls": 12,
+   "price": 20000,
+   "custom": false
+  },
+  {
+   "model": "minivan",
+   "cls": 12,
+   "price": 22000,
+   "custom": false
+  },
+  {
+   "model": "minivan2",
+   "cls": 12,
+   "price": 22000,
+   "custom": false
+  },
+  {
+   "model": "youga4",
+   "cls": 12,
+   "price": 23500,
+   "custom": false
+  },
+  {
+   "model": "youga5",
+   "cls": 12,
+   "price": 23500,
+   "custom": false
+  },
+  {
+   "model": "bison",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "bison2",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "bison3",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "bobcatxl",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "burrito",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "burrito2",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "burrito3",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "burrito4",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "burrito5",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "gburrito",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "paradise",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "pony",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "pony2",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "rumpo",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "rumpo2",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "rumpo3",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "speedo",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "speedo2",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "speedo4",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "speedo5",
+   "cls": 12,
+   "price": 24500,
+   "custom": false
+  },
+  {
+   "model": "gburrito2",
+   "cls": 12,
+   "price": 29500,
+   "custom": false
+  },
+  {
+   "model": "laufer",
+   "cls": 12,
+   "price": 29500,
+   "custom": false
+  }
+ ]
+}

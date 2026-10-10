@@ -1,7 +1,10 @@
 // Vehicle ownership, fuel, locks and doors.
 //
 // Shared vehicle variables (every client sees them):
-//   owner    – static of the character that owns the vehicle (null: nobody)
+//   owner    – static of the character that owns the vehicle (null: nobody: /veh vehicles,
+//              anyone opens, locks, starts and refuels them)
+//   org      – the organization a work vehicle belongs to (orgs.js; its members lock it)
+//   carId    – the record of a bought vehicle (cars.js)
 //   fuel     – litres in the tank (one decimal), fuelMax – tank size
 //   doors    – bit mask of open doors: 0-3 doors, 4 bonnet, 5 boot
 //
@@ -65,6 +68,14 @@ function setFuel(veh, litres) {
   return f;
 }
 
+// One colour chosen here: without it every client paints the vehicle at random
+// (and a garage would bring it back in another colour).
+const PAINTS = [0, 1, 4, 5, 7, 12, 27, 28, 38, 53, 55, 64, 70, 88, 111, 112, 141, 145];
+function paint(veh) {
+  const c = PAINTS[Math.floor(Math.random() * PAINTS.length)];
+  veh.setColor(c, c);
+}
+
 // A vehicle spawned for a player: owned, full (or the given fuel), doors shut.
 function setup(veh, ownerStatic, fuel) {
   veh.setVariables({ owner: ownerStatic ?? null, fuelMax: DEFAULT_TANK, doors: 0 });
@@ -74,6 +85,17 @@ function setup(veh, ownerStatic, fuel) {
 function isOwner(player, veh) {
   const owner = veh.getVariable('owner');
   return owner !== null && owner !== undefined && owner === player.getVariable('static');
+}
+
+// Who may lock and unlock a vehicle: its owner; anyone when it belongs to nobody (/veh);
+// for other vehicles the rules modules add (orgs.js: members lock their work vehicles).
+const lockRules = [];
+
+function canLock(player, veh) {
+  if (isOwner(player, veh)) return true;
+  const owner = veh.getVariable('owner');
+  const free = (owner === null || owner === undefined) && !veh.getVariable('org');
+  return free || lockRules.some((rule) => rule(player, veh));
 }
 
 // The vehicle the player sits in, or the nearest one within range (same dimension).
@@ -119,12 +141,15 @@ function tick() {
     }
     const kmh = moved * 3.6;
     const left = setFuel(veh, fuel - consumption(kmh, s.factor));
-    const driver = veh.getOccupant(0);
+    // The driver is looked up only to tell him something: finding him walks every
+    // player, and this runs for every vehicle every second.
     if (left <= 0) {
       veh.engine = false;
+      const driver = veh.getOccupant(0);
       if (driver) driver.notify('~r~Закончилось топливо~s~. Заправьтесь на АЗС или канистрой.');
     } else if (left < tankOf(veh) * 0.1 && !s.warned) {
       s.warned = true;
+      const driver = veh.getOccupant(0);
       if (driver) driver.notify(`~o~Мало топлива~s~: ${round1(left)} л`);
     }
   });
@@ -171,8 +196,8 @@ function toggleLock(player, id) {
   // The vehicle the client named (G menu), else the nearest own one.
   const named = id === undefined || id === null ? null : mp.vehicles.at(Number(id));
   const inRange = (v) => player.vehicle === v || (v.dimension === player.dimension && v.position.subtract(player.position).length() <= LOCK_RANGE);
-  const veh = named && isOwner(player, named) && inRange(named) ? named : nearest(player, LOCK_RANGE, (v) => isOwner(player, v));
-  if (!veh) return player.notify('~r~Рядом нет вашего транспорта');
+  const veh = named && canLock(player, named) && inRange(named) ? named : nearest(player, LOCK_RANGE, (v) => canLock(player, v));
+  if (!veh) return player.notify('~r~Рядом нет транспорта, который вы можете закрыть');
   veh.locked = !veh.locked;
   lockFx(veh, veh.locked, player.getVariable('static'));
   return player.notify(veh.locked ? 'Транспорт ~r~закрыт' : 'Транспорт ~g~открыт');
@@ -233,12 +258,13 @@ function isVehicleName(name) {
   return n.startsWith('veh:') || Object.prototype.hasOwnProperty.call(ALIASES, n);
 }
 
-// Called with every vehicle spawned for a player (tuning.js applies saved tuning).
+// Called with every vehicle spawned for a player (cars.js puts a bought car's look on it).
 const onSpawn = [];
 
-// Spawns the player's vehicle (it replaces the previous one), owned by the
-// player's character. putIn: the player sits in it (/veh), else it stands in front (/give).
-function spawnFor(player, name, { putIn = true } = {}) {
+// Spawns the player's vehicle (it replaces the previous one), owned by the player's
+// character; owned: false (/veh) makes it belong to nobody: anyone may open, lock,
+// start and refuel it. putIn: the player sits in it, else it stands in front.
+function spawnFor(player, name, { putIn = true, owned = true } = {}) {
   const model = modelOf(name);
   const old = player.getVariable('personalVehicle');
   if (old && mp.vehicles.exists(old)) old.destroy();
@@ -252,7 +278,8 @@ function spawnFor(player, name, { putIn = true } = {}) {
     dimension: player.dimension,
     engine: putIn,
   });
-  setup(veh, statik);
+  setup(veh, owned ? statik : null);
+  paint(veh);
   player.setVariable('personalVehicle', veh);
   for (const fn of onSpawn) fn(veh, player, model);
   if (putIn) player.putIntoVehicle(veh, 0);
@@ -260,6 +287,6 @@ function spawnFor(player, name, { putIn = true } = {}) {
 }
 
 module.exports = {
-  setup, setClass, setFuel, fuelOf, tankOf, refuel, nearest, isOwner, repair, toggleLock, consumption, tick,
+  setup, paint, setClass, setFuel, fuelOf, tankOf, refuel, nearest, isOwner, canLock, lockRules, repair, toggleLock, consumption, tick,
   modelOf, isVehicleName, spawnFor, onSpawn, ALIASES, CLASSES, DEFAULT_TANK,
 };

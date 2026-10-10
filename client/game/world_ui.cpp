@@ -162,6 +162,7 @@ void GameClient::drawNameTags() {
     const Vec3 here{mp.x, mp.y, mp.z};
     for (auto& [id, r] : players_) {
         if (!r.ped || r.name.empty()) continue;
+        if (const Value* inv = props::shared(r.shared, "invisible"); inv && inv->kind == Value::Kind::Bool && inv->b) continue;  // an invisible admin
         Vector3 pp = ENTITY::GET_ENTITY_COORDS(r.ped, true);
         Vec3 pos{pp.x, pp.y, pp.z + 1.1f};
         if (dist(here, pos) > kNameTagDistance) continue;
@@ -352,7 +353,16 @@ void GameClient::samplePerf(Clock::time_point frameStart) {
         fixed(ENTITY::GET_ENTITY_SPEED(me), 2) + " ability=" + std::to_string(PLAYER::IS_SPECIAL_ABILITY_ACTIVE(player, 0)) +
         " switch=" + std::to_string(STREAMING::IS_PLAYER_SWITCH_IN_PROGRESS()) + " health=" +
         std::to_string(ENTITY::GET_ENTITY_HEALTH(me)) + "/" + std::to_string(PED::GET_PED_MAX_HEALTH(me)) +
-        " remotes=" + std::to_string(players_.size()) + " world=" + std::to_string(world_.size()));
+        " remotes=" + std::to_string(players_.size()) + " vehicles=" + std::to_string(vehicles_.size()) +
+        " world=" + std::to_string(world_.size()));
+    // Average cost of each part of the tick, to find what a slow frame spends its time on.
+    static constexpr const char* kPartNames[Perf::Parts] = {"population", "net", "remotes", "world", "hud", "ui"};
+    std::string parts = "perf parts_ms";
+    for (int i = 0; i < Perf::Parts; ++i) {
+        parts += std::string(" ") + kPartNames[i] + "=" + fixed(perf_.parts[i] / perf_.frames, 3);
+        perf_.parts[i] = 0;
+    }
+    log(parts);
     perf_.realSum = perf_.gameSum = perf_.tickSum = perf_.tickMax = 0;
     perf_.frames = 0;
     perf_.windowStart = now;

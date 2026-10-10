@@ -158,6 +158,8 @@ inline void SET_TEXT_OUTLINE() { return invoke<void>(0x2513DFB0FB8400FEull); }
 inline void SET_TEXT_SCALE(float scale, float size) { return invoke<void>(0x07C837F9A01C34C9ull, scale, size); }
 inline void SET_TEXT_WRAP(float start, float end) { return invoke<void>(0x63145D9C883A1A70ull, start, end); }
 inline void SET_WAYPOINT_OFF() { return invoke<void>(0xA7E4E2D361C2627Full); }
+inline Vector3 GET_BLIP_INFO_ID_COORD(Blip blip) { return invoke<Vector3>(0xFA7C7F0AADF25D09ull, blip); }
+inline void SET_BLIP_DISPLAY(Blip blip, int displayId) { return invoke<void>(0x9029B2F3DA924928ull, blip, displayId); }
 }  // namespace HUD
 
 namespace INTERIOR {
@@ -195,6 +197,7 @@ namespace OBJECT {
 inline Object CREATE_OBJECT_NO_OFFSET(Hash modelHash, float x, float y, float z, BOOL isNetwork, BOOL bScriptHostObj, BOOL dynamic, Any p7) { return invoke<Object>(0x9A294B2138ABB884ull, modelHash, x, y, z, isNetwork, bScriptHostObj, dynamic, p7); }
 inline void DELETE_OBJECT(Object* object) { return invoke<void>(0x539E0AE3E6634B9Full, object); }
 inline BOOL PLACE_OBJECT_ON_GROUND_PROPERLY(Object object) { return invoke<BOOL>(0x58A850EAEE20FAA3ull, object); }
+inline void SET_STATE_OF_CLOSEST_DOOR_OF_TYPE(Hash type, float x, float y, float z, BOOL locked, float heading, BOOL p6) { return invoke<void>(0xF82D8F1926A02C3Dull, type, x, y, z, locked, heading, p6); }
 }  // namespace OBJECT
 
 namespace PAD {
@@ -421,6 +424,9 @@ inline void SET_VEHICLE_WHEEL_TYPE(Vehicle vehicle, int WheelType) { return invo
 inline void SET_VEHICLE_WINDOW_TINT(Vehicle vehicle, int tint) { return invoke<void>(0x57C51E6BAD752696ull, vehicle, tint); }
 inline void START_VEHICLE_HORN(Vehicle vehicle, int duration, Hash mode, BOOL forever) { return invoke<void>(0x9C8C6504B5B63D2Cull, vehicle, duration, mode, forever); }
 inline void TOGGLE_VEHICLE_MOD(Vehicle vehicle, int modType, BOOL toggle) { return invoke<void>(0x2A1F4F37F95BAD08ull, vehicle, modType, toggle); }
+inline const char* GET_MAKE_NAME_FROM_VEHICLE_MODEL(Hash modelHash) { return invoke<const char*>(0xF7AF4F159FF99F97ull, modelHash); }
+inline int GET_VEHICLE_MODEL_NUMBER_OF_SEATS(Hash modelHash) { return invoke<int>(0x2AD93716F184EDA4ull, modelHash); }
+inline void SET_VEHICLE_DIRT_LEVEL(Vehicle vehicle, float dirtLevel) { return invoke<void>(0x79D3B596FE44EE8Bull, vehicle, dirtLevel); }
 }  // namespace VEHICLE
 
 namespace WEAPON {

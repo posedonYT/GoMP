@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "budget.hpp"
+#include "gomp/fastdl.hpp"
 #include "gomp/messages.hpp"
 #include "logic.hpp"
 #include "gomp/transport.hpp"
@@ -71,6 +73,8 @@ struct RemotePlayer {
     gomp::KV shared;
     Vec3 spawnPos;
     float spawnHeading = 0;
+    budget::Los los;            // line of sight for the soft position correction
+    bool blipHidden = false;    // an invisible admin: the map blip is hidden
 };
 
 struct RemoteVehicle {
@@ -132,6 +136,7 @@ private:
     void onShot(const gomp::WeaponShotOut& s);
     void onInvoke(const gomp::Invoke& inv);
     void onAnim(const gomp::PlayAnim& a);
+    void tickAnims();  // plays animations whose dictionary has loaded
     void onScriptEvent(const gomp::ScriptEvent& e);
     void onProcCall(const gomp::ProcCall& c);
 
@@ -151,6 +156,7 @@ private:
     bool ensureModel(Hash model);
     Ped spawnRemotePed(RemotePlayer& r);
     Vehicle spawnRemoteVehicle(RemoteVehicle& v);
+    void runLosRequests();
     void applyAppearance(Ped ped, const gomp::Props& p);
     void applyVehicleProps(Vehicle veh, const gomp::Props& p, RemoteVehicle* rv);
     void despawnPlayer(RemotePlayer& r);
@@ -167,15 +173,17 @@ private:
     void clearAmbient();
     void killStoryScripts();
     std::vector<std::pair<int, std::string>> runningScripts() const;
-    void logScripts();
+    void logScripts(const std::vector<std::pair<int, std::string>>& scripts);
     void removeForeignBlips();
     void restorePlayerState();
     void handlePauseMenu();
     bool uiBlocksPause();
 
     // login, character selection, character creator and the HUD (screens.cpp)
-    enum class Screen { None, Login, Characters, Creator, Menu, Layout, Inventory, VehMenu, Shop, Fuel, Tuning, House, Phone };
-    bool lobbyScreen() const { return screen_ == Screen::Login || screen_ == Screen::Characters || screen_ == Screen::Creator; }
+    enum class Screen { None, Login, Characters, Creator, Spawn, Menu, Layout, Inventory, VehMenu, Shop, Fuel, Tuning, House, Phone, Choice, Dealer };
+    bool lobbyScreen() const {
+        return screen_ == Screen::Login || screen_ == Screen::Characters || screen_ == Screen::Creator || screen_ == Screen::Spawn;
+    }
     struct CharInfo {
         int id = 0, statik = 0;
         std::string first, last;
@@ -197,6 +205,19 @@ private:
         std::string text;
         std::string latin;  // the same key in the US layout
     };
+    // Where to appear after choosing a character (gomp:spawn:show).
+    struct SpawnOption {
+        std::string id, title, sub;
+        Vec3 pos;
+        bool hasPos = false;
+    };
+    // A small menu of buttons in the middle of the screen ("Куда выйти?").
+    struct ChoiceOption {
+        std::string title;
+        std::function<void()> action;
+    };
+    // text: a line under the title; onCancel: Esc (the window closed without a choice).
+    void openChoice(const std::string& title, std::vector<ChoiceOption> options, std::string text = {}, std::function<void()> onCancel = {});
     bool handleUiEvent(const gomp::ScriptEvent& e);
     void openScreen(Screen s);
     void closeScreens();
@@ -204,6 +225,8 @@ private:
     void drawLogin();
     void drawCharacters();
     void drawCreator();
+    void drawSpawn();
+    void drawChoice();
     void applyCreatorPreview();
     void dumpClothes();
     void dressOutfit(Ped ped, Creator& c);
@@ -320,17 +343,43 @@ private:
         std::string name, cls;
         long long price = 0;
         Vec3 door;
+        float heading = 0;
+        std::string interiorName;  // the interior this very house uses (empty: the class's)
         int owner = -1;  // static of the owner, -1 for sale
         std::string ownerName;
         bool locked = true;
         Blip blip = 0;
         float ground = 0;  // the ground under the door, for its marker
         bool grounded = false;
+        // Garage interior (an old server sends none of this).
+        bool hasGarage = false;
+        std::string garageName;
+        bool hasGaragePoint = false;
+        Vec3 garagePoint;  // where cars enter and leave the garage, outside ("ground + 1")
+        float garageHeading = 0;
+        Blip garageBlip = 0;
+    };
+    // A garage interior template (the 4th argument of gomp:houses); the probe reads these.
+    struct GarageTemplate {
+        std::string name;
+        Vec3 spawn, exit;
+        float heading = 0;
+        std::vector<std::pair<Vec3, float>> slots;
     };
     struct HouseClass {
         std::string name, interiorName;
         int garage = 0;
         Vec3 interior;
+    };
+    // An interior template (houses with several looks of one class); only the probe reads these.
+    struct HouseInterior {
+        std::string name;
+        Vec3 spawn, exit;
+        float heading = 0;
+    };
+    struct HouseProp {
+        Hash model = 0;
+        Vec3 pos, rot;
     };
     struct GarageCar {
         Hash model = 0;
@@ -356,16 +405,33 @@ private:
     bool roadSpot(Vec3 around, Vec3& spot, float& heading) const;
     void garageTake(int house, int slot, bool release);
     void tickHouseFade();
+    void arriveAt(Vec3 target, float heading, bool hasHeading);
+    void settleGarageVehicles(Vec3 around);
+    bool tickGarage(bool interact, bool inVeh);
+    void buildHouseProps();
+    void clearHouseProps();
     void tickProbe();
+    enum class ProbeKind { Door, InteriorSpawn, InteriorExit, GarageSpawn, GarageExit, GarageSlot, GaragePoint };
     struct ProbeTarget {
         std::string name;
         Vec3 pos;
         bool interior = false;
+        ProbeKind kind = ProbeKind::Door;
+        std::string key;   // the template id
+        float heading = 0;
+        Vec3 stand;        // where the ped is put (garage slots: the garage spawn)
+        int slot = 0;      // slot number (1-based) or house id
     };
     std::vector<ProbeTarget> probeTargets_;
     int probeIndex_ = -1;  // -1 not started
     DWORD probeAt_ = 0;
     bool probing_ = false;
+    std::string probeFailure_;  // why the test car of a place was not made
+    Vehicle probeCar_ = 0;  // the test car of a slot or a garage point
+    DWORD probeCarAt_ = 0;  // when it was made
+    Vec3 probeCarStart_;    // where it was put
+    int probeStage_ = 0;    // the step of a probe target or window that takes several frames
+    std::vector<Vehicle> probeCars_;  // test cars filling a garage for the screenshots
 
     // the phone (phone.cpp)
     struct PhoneContact {
@@ -390,6 +456,50 @@ private:
     std::string contactName(const std::string& number) const;
     int unreadSms() const;
 
+    // car dealership (dealer.cpp)
+    struct DealerCar {
+        std::string model, name;
+        Hash hash = 0;
+        int cls = 0;
+        long long price = 0;
+        bool custom = false;
+    };
+    struct DealerColor {
+        int id = 0;
+        std::string name;
+        ui::Rgba rgb{};
+    };
+    bool handleDealerEvent(const gomp::ScriptEvent& e);
+    bool tickDealer(bool interact, bool hintTaken);
+    void drawDealer();
+    void openDealer();
+    void closeDealer();
+    void updateDealerPreview();
+    std::string vehicleName(Hash model, const std::string& fallback) const;
+
+    // organizations, the F2 property tab, server questions (orgs_ui.cpp)
+    struct OrgDoor {
+        Hash model = 0;
+        Vec3 pos;
+        float nx = 0, ny = 0;
+    };
+    struct OrgBase {
+        std::string id, name, baseName;
+        ui::Rgba color{};
+        Vec3 center, interior, storage;
+        float radius = 60;
+        bool hasInterior = false;
+        std::vector<OrgDoor> doors;
+    };
+    bool handleOrgEvent(const gomp::ScriptEvent& e);
+    bool tickOrgBases(bool interact, bool hintTaken);
+    void drawPropertyTab(float cx, float cy, float cw, float bottom);
+    void drawOrgTab(float cx, float cy, float cw, float bottom);
+
+    // admin tools: flight, invisibility, teleport to the waypoint (admin_tools.cpp)
+    bool handleAdminEvent(const gomp::ScriptEvent& e);
+    void tickAdmin();
+
     // inventory (inventory.cpp)
     struct ItemDef {
         std::string name, type, icon, desc;
@@ -402,7 +512,7 @@ private:
         bool empty() const { return key.empty(); }
     };
     struct InvRef {
-        int container = -1, index = -1;  // 0 pockets, 1 hotbar, 2 equipment
+        int container = -1, index = -1;  // 0 pockets, 1 hotbar, 2 equipment, 3 an open storage
         bool valid() const { return container >= 0; }
         bool operator==(const InvRef&) const = default;
     };
@@ -431,12 +541,26 @@ private:
 
     Config cfg_;
     std::unique_ptr<gomp::Client> net_ = std::make_unique<gomp::Client>();
+    // The server's client_packages, brought into the cache before Ready (fastdl, port+1).
+    std::unique_ptr<gomp::fastdl::Downloader> packages_;
+    bool packagesReady_ = false;
+    bool tickPackages();  // true once they are there (or the server has none)
+    std::filesystem::path packagesDir() const;
     std::vector<gomp::Message> inbox_;
     Clock::time_point epoch_ = Clock::now();
     Clock::time_point lastSync_{}, lastAmbientSweep_{}, lastConnectTry_{};
     std::string status_ = "connecting";
     bool populationInit_ = false;
     Clock::time_point lastScriptKill_{};
+    struct PendingAnim {
+        gomp::PlayAnim anim;
+        Clock::time_point since;
+    };
+    std::vector<PendingAnim> pendingAnims_;  // waiting for their animation dictionary
+    budget::Sweep blipSweep_{};  // foreign blips, a few sprites per frame
+    bool blipRound_ = false;
+    uint64_t frameNo_ = 0;
+    std::vector<budget::LosRequest> losRequests_;  // raycasts asked for by remote peds this frame
     std::set<std::string> knownScripts_;
     std::set<std::string> terminatedScripts_;  // already logged
     Hash pendingSelfModel_ = 0;  // player model waiting for streaming
@@ -488,6 +612,15 @@ private:
         double realSum = 0, gameSum = 0, tickSum = 0, tickMax = 0;
         int frames = 0;
         double fps = 0, timeScale = 1, tickAvgMs = 0, tickMaxMs = 0;
+        // Time of the parts of a tick (ms, summed over the window).
+        enum Part { Population, Net, Remotes, World, Hud, Ui, Parts };
+        double parts[Parts] = {};
+        Clock::time_point mark{};
+        void lap(Part p) {
+            const auto now = Clock::now();
+            parts[p] += std::chrono::duration<double, std::milli>(now - mark).count();
+            mark = now;
+        }
     } perf_;
     std::atomic<DWORD> escHandledAt_{0};  // Esc consumed by the chat/console (keyboard thread)
     std::atomic<ui::Lang> lang_{ui::Lang::En};  // input language for chat, console and fields
@@ -516,6 +649,9 @@ private:
     std::array<Slot, 24> pockets_;  // 6 x 4
     std::array<Slot, 9> hotbar_;
     std::array<Slot, 3> equip_;
+    std::vector<Slot> storage_;     // an organization's storage, while it is open
+    std::string storageTitle_;
+    bool storageTake_ = false, storagePut_ = false;
     int heldSlot_ = -1;
     InvRef invSelected_, invPress_, invHover_;
     float invPressX_ = 0, invPressY_ = 0;
@@ -566,15 +702,61 @@ private:
     DWORD houseSellConfirmAt_ = 0, releaseConfirmAt_ = 0;
     int releaseConfirmSlot_ = -1;
     int insideHouse_ = -1;          // the house the player is in, -1 outside
+    int insideGarage_ = -1;         // the house whose garage the player is in, -1 outside
     int blipsStatic_ = -2;          // own static the house blips were coloured for
     Vec3 houseExit_;
-    // Into a house and out: 1 faded out, waiting for the server; 2 there, waiting for the interior.
+    Vec3 garageExit_;               // the exit marker inside the garage
+    std::map<std::string, HouseInterior> houseInteriors_;  // empty with an old server
+    std::map<std::string, GarageTemplate> garageTemplates_;  // empty with an old server
+    std::vector<SpawnOption> spawnOptions_;
+    std::string choiceTitle_, choiceText_;
+    std::vector<ChoiceOption> choice_;
+    std::function<void()> choiceCancel_;
+    // dealer.cpp
+    bool dealerLoaded_ = false;
+    std::string dealerName_;
+    Vec3 dealerMarker_, dealerPreviewPos_;
+    float dealerRadius_ = 2.5f, dealerPreviewHeading_ = 0, dealerOrbit_ = 0;
+    std::vector<DealerColor> dealerColors_;
+    std::vector<std::pair<std::string, std::string>> dealerSections_;  // id, name
+    std::vector<std::pair<int, std::string>> dealerClasses_;           // GTA class, name
+    std::vector<DealerCar> dealerCars_;
+    int dealerSection_ = 0, dealerClass_ = 0, dealerPick_ = -1, dealerColor_ = 0, dealerScroll_ = 0;
+    Vehicle dealerPreview_ = 0;
+    Hash dealerPreviewModel_ = 0;
+    int dealerPreviewColor_ = -1;
+    // orgs_ui.cpp
+    std::vector<OrgBase> orgBases_;
+    DWORD orgDoorsAt_ = 0;
+    gomp::Value propertyView_, orgView_;  // the last answers to gomp:property:get / gomp:org:get
+    DWORD propertyAskedAt_ = 0, orgAskedAt_ = 0;
+    int orgRankEdit_ = -1, orgMemberScroll_ = 0;
+    std::string orgRankName_;
+    std::map<std::string, bool> orgRankPerms_;
+    // admin_tools.cpp
+    bool flying_ = false;
+    bool tpmPending_ = false;
+    DWORD tpmAt_ = 0;
+    float tpmX_ = 0, tpmY_ = 0;
+    std::vector<HouseProp> housePropsWanted_;  // decoration of the interior, made once it is ready
+    std::vector<Object> houseProps_;           // the local (not networked) objects made from it
+    // Built over frames: the models stream in, then a few objects are made per frame.
+    bool housePropsBuilding_ = false;
+    DWORD housePropsAskedAt_ = 0;
+    std::size_t housePropsNext_ = 0;
+    int housePropsSkipped_ = 0;
+    void tickHouseProps();
+    // Into a house or a garage and out: 1 faded out, waiting for the server; 2 there,
+    // waiting for the interior; 3 arrived, waiting for the decoration.
     int houseFade_ = 0;
     DWORD houseFadeAt_ = 0;
     Vec3 houseFadeTarget_;
-    std::string houseFadeEvent_;    // sent once the screen is dark
+    gomp::ScriptEvent houseFadeRequest_;  // sent once the screen is dark (empty name: sent)
     int houseFadeArg_ = 0;
-    void startHouseFade(const std::string& event, int house);
+    Vehicle houseFadeVehicle_ = 0;        // the vehicle we arrive in, held still until ready
+    float houseFadeHeading_ = 0;
+    bool houseFadeHasHeading_ = false;
+    void startHouseFade(gomp::ScriptEvent request, int house);
 
     // phone.cpp
     std::atomic<bool> phoneRequested_{false};  // the up arrow (keyboard thread)

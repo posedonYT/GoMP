@@ -371,3 +371,36 @@ func TestHandshakeRestartsAfterLostAccept(t *testing.T) {
 	// The session must be usable: keys on both sides match the final handshake.
 	echo(t, c, 20, 16, 5*time.Second)
 }
+
+// A peer sending far more datagrams than allowed has them dropped (before
+// decryption) and is disconnected when it keeps on.
+func TestPacketFloodDisconnects(t *testing.T) {
+	h := newHarness(t, transport.ServerConfig{Encryption: true, MaxPacketsPerSec: 100}, "")
+	c := dial(t, h, nil, nil)
+	h.waitEvent(transport.EventConnect, time.Second)
+	msg := make([]byte, 900)
+	deadline := time.Now().Add(12 * time.Second)
+	for time.Now().Before(deadline) {
+		for range 20 { // ~20 datagrams per round, ~1000 a second
+			_ = c.Send(transport.Unreliable, msg)
+			c.Flush(time.Now())
+		}
+		c.Drain(func(transport.Message) {})
+		h.mu.Lock()
+		for _, e := range h.events {
+			if e.Kind == transport.EventDisconnect {
+				h.mu.Unlock()
+				if e.Reason != "packet flood" {
+					t.Fatalf("disconnected for %q", e.Reason)
+				}
+				if h.srv.FloodDropped() == 0 {
+					t.Fatal("nothing counted as dropped")
+				}
+				return
+			}
+		}
+		h.mu.Unlock()
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("flooder not disconnected (dropped %d)", h.srv.FloodDropped())
+}

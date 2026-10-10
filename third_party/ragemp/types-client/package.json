@@ -1,0 +1,20 @@
+{
+	"name": "@ragempcommunity/types-client",
+	"version": "2.1.9",
+	"description": "Types definitions for RAGE:MP client-side module",
+	"main": "index.d.ts",
+	"files": [
+		"index.d.ts",
+		"natives.d.ts",
+		"enums.d.ts",
+		"game.d.ts",
+		"game",
+		"enums"
+	],
+	"author": "@ragempcommunity",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
+	"gitHead": "7d0ce2f696c67210b8a5867e55179cfc9400fdb4"
+}

@@ -1,7 +1,8 @@
 package server
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 
 	"gomp/core/internal/streaming"
 	"gomp/core/internal/world"
@@ -51,8 +52,13 @@ func (s *Server) dropSyncCache(k proto.EntityRef) {
 
 // prepareSyncCache encodes the latest sync message of every entity that
 // changed this tick, once, so all receivers share the bytes.
+//
+// Nothing here allocates in the steady state: the seen set, the messages and
+// each entity's byte buffer are reused (receivers copy the bytes when they
+// queue them, so last tick's buffer is free).
 func (s *Server) prepareSyncCache() {
-	seen := make(map[proto.EntityRef]bool, len(s.netDirty))
+	seen := s.syncSeen
+	clear(seen)
 	for _, k := range s.netDirty {
 		if seen[k] {
 			continue
@@ -75,13 +81,15 @@ func (s *Server) prepareSyncCache() {
 			case e.DisableOutgoingSync:
 				msg = nil
 			case e.Vehicle == nil:
-				msg = &proto.PlayerSyncOut{PlayerID: e.ID, PedSync: proto.PedSync{
+				s.msgPed = proto.PlayerSyncOut{PlayerID: e.ID, PedSync: proto.PedSync{
 					Time: e.SyncTime, Pos: e.Pos, Vel: e.Vel, Heading: e.Heading,
 					Move: e.Move, Flags: e.Flags, Weapon: e.Weapon, AimPos: e.AimPos}}
+				msg = &s.msgPed
 			case e.Seat != proto.SeatDriver:
-				msg = &proto.PassengerSyncOut{PlayerID: e.ID, PassengerSync: proto.PassengerSync{
+				s.msgPassenger = proto.PassengerSyncOut{PlayerID: e.ID, PassengerSync: proto.PassengerSync{
 					VehicleID: e.Vehicle.ID, Seat: e.Seat, Time: e.SyncTime, Flags: e.Flags,
 					Weapon: e.Weapon, AimPos: e.AimPos}}
+				msg = &s.msgPassenger
 			}
 		case *world.Vehicle:
 			seq = e.SyncSeq
@@ -99,17 +107,23 @@ func (s *Server) prepareSyncCache() {
 					vs.Weapon, vs.AimPos = d.Weapon, d.AimPos
 				}
 			}
-			msg = &proto.VehicleSyncOut{VehicleSync: vs}
+			s.msgVehicle = proto.VehicleSyncOut{VehicleSync: vs}
+			msg = &s.msgVehicle
 		}
 		if msg == nil {
 			*slot = nil
 			continue
 		}
-		b, err := proto.Marshal(msg)
+		cs := *slot
+		if cs == nil {
+			cs = &cachedSync{}
+		}
+		b, err := proto.MarshalAppend(cs.bytes, msg)
 		if err != nil {
 			continue
 		}
-		*slot = &cachedSync{seq: seq, bytes: b}
+		cs.seq, cs.bytes = seq, b
+		*slot = cs
 	}
 	s.netDirty = s.netDirty[:0]
 }
@@ -149,7 +163,7 @@ func (s *Server) sendSync() {
 		if len(due) == 0 {
 			return
 		}
-		sort.Slice(due, func(a, b int) bool { return due[a].e.Acc > due[b].e.Acc })
+		slices.SortFunc(due, func(a, b dueSync) int { return cmp.Compare(b.e.Acc, a.e.Acc) })
 		left := budget
 		out := c.out[:0]
 		for _, d := range due {

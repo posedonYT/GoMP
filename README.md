@@ -11,7 +11,7 @@
 | `tools/` | Go-боты, стресс-тест, генератор нативок |
 | `tools/studio/` | GoMP Studio — 3D-редактор карты сервера и кастомных машин (Windows/Linux/macOS), см. `tools/studio/README.md` |
 | `client/` | C++ клиент: `core` (протокол/транспорт), `headless`, `game` (ASI, в работе) |
-| `docs/` | `research.md` — анализ RAGE.MP / FiveM / alt:V |
+| `docs/` | `research.md` — анализ RAGE.MP / FiveM / alt:V; `performance.md` — нагрузка, настройки, Redis, метрики |
 
 ## Запуск
 
@@ -30,6 +30,12 @@ make test
 ```bash
 make stress
 ```
+
+## Производительность
+
+Настройки под нагрузку (`max-reliable-backlog`, `max-packets-per-second`, `host-ops-per-tick`,
+`host-mirror-rate`), хранилище геймода (файлы по умолчанию или Redis через `storage` /
+`GOMP_REDIS_URL`), метрики и стресс-тест — в [docs/performance.md](docs/performance.md).
 
 ## Статус (этап 1)
 

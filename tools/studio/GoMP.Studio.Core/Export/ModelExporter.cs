@@ -20,17 +20,20 @@ public sealed class ModelExporter
 
     private static readonly uint DiffuseSampler = GoMP.Studio.Maps.Joaat.Hash("diffusesampler");
     private readonly GameFileCache cache;
-    private readonly SemaphoreSlim slots = new(Math.Max(2, Environment.ProcessorCount / 2));
+    // Exports at once: all cores but two (the browser, the game server); the world's
+    // streaming may use all of them but one (ExportSlots).
+    public static readonly int SlotCount = Math.Max(2, Environment.ProcessorCount - 2);
+    private readonly ExportSlots slots = new(SlotCount);
     private readonly ConcurrentDictionary<uint, Lazy<YtdFile>> ytds = new();
 
     public ModelExporter(GameFileCache cache) => this.cache = cache;
 
     // The .glb of a model, or null when the game has no drawable for it.
     // extraTxds: more texture dictionaries to look in (vehicles: vehshare...).
-    public byte[] Export(uint hash, Lod lod = Lod.High, int maxTexture = MaxTextureSize, IEnumerable<uint> extraTxds = null)
+    // low: the world streaming around the camera (waits behind what the user asked for).
+    public byte[] Export(uint hash, Lod lod = Lod.High, int maxTexture = MaxTextureSize, IEnumerable<uint> extraTxds = null, bool low = false)
     {
-        slots.Wait();
-        try
+        using (slots.Enter(low))
         {
             var arch = cache.GetArchetype(hash);
             var drawable = LoadDrawable(hash, arch, out var frag);
@@ -40,10 +43,6 @@ public sealed class ModelExporter
             txds.Add(hash);  // vehicles and many props: a dictionary named like the model
             if (extraTxds != null) txds.AddRange(extraTxds);
             return Build(drawable, lod, tex => FindTexture(drawable, tex, txds), maxTexture, frag);
-        }
-        finally
-        {
-            slots.Release();
         }
     }
 
@@ -70,8 +69,11 @@ public sealed class ModelExporter
     // A vehicle of an add-on pack: its model (the detailed _hi one when there is one)
     // with the pack's textures, the parents named in its vehicles.meta, the game's
     // texture dictionaries (when the game is loaded) and the shared vehshare.
-    public byte[] ExportVehicle(Vehicles.AddonPack pack, string model, int maxTexture = MaxTextureSize, string textureOf = null) =>
-        ExportVehicle(pack, model, cache, ytds, maxTexture, textureOf);
+    public byte[] ExportVehicle(Vehicles.AddonPack pack, string model, int maxTexture = MaxTextureSize, string textureOf = null)
+    {
+        using (slots.Enter())  // the user's own request: never behind the streaming ones
+            return ExportVehicle(pack, model, cache, ytds, maxTexture, textureOf);
+    }
 
     // textureOf: a mod part (spoiler, bumper) uses the textures of its vehicle.
     public static byte[] ExportVehicle(Vehicles.AddonPack pack, string model, GameFileCache cache, ConcurrentDictionary<uint, Lazy<YtdFile>> gameYtds, int maxTexture, string textureOf = null)

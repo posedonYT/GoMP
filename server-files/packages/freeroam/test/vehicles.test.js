@@ -14,13 +14,13 @@ function driverIn(model = 'blista') {
   return { p, veh };
 }
 
-test('/veh spawns an owned vehicle with a full tank and puts the player in', () => {
+test('/veh spawns a vehicle of nobody with a full tank and puts the player in', () => {
   const p = fake.login(fake.join());
   fake.command(p, '/veh vaz2107');
   const veh = p.vehicle;
   assert.ok(veh, 'in a vehicle');
   assert.strictEqual(veh.model, mp.joaat('lada2107'));
-  assert.strictEqual(veh.getVariable('owner'), p.getVariable('static'));
+  assert.strictEqual(veh.getVariable('owner'), null, 'nobody owns it');
   assert.strictEqual(veh.getVariable('fuel'), vehicles.DEFAULT_TANK);
   assert.match(veh.numberPlate, /^GO\d{5}$/);
   assert.strictEqual(p.getVariable('personalVehicle'), veh);
@@ -98,7 +98,7 @@ test('only the owner locks a vehicle (L), with lights and a beep for players nea
   stranger.position = p.position;
   fake.emit('gomp:veh:lock', stranger);
   assert.strictEqual(veh.locked, false);
-  assert.ok(stranger.notes.some((n) => /нет вашего транспорта/.test(n)));
+  assert.ok(stranger.notes.some((n) => /Рядом нет транспорта/.test(n)));
   fake.emit('gomp:veh:lock', p, veh.id);
   assert.strictEqual(veh.locked, true);
   assert.ok(stranger.lastCall('gomp:veh:lockfx'), 'others see the lights');
@@ -135,4 +135,25 @@ test('a repair kit fixes a nearby vehicle after the repair time', (t) => {
   t.mock.timers.tick(6000);
   assert.strictEqual(veh.engineHealth, 1000);
   assert.strictEqual(inventory.countOf(ch, 'repairkit'), 0);
+});
+
+test('a /veh vehicle belongs to nobody: anyone locks and opens it, refuels it at a station', () => {
+  const owner = fake.login(fake.join());
+  owner.position = new mp.Vector3(5000, 5000, 0);
+  fake.command(owner, '/veh sultan');
+  const veh = owner.vehicle;
+  owner.removeFromVehicle();
+  owner.position = new mp.Vector3(5100, 5000, 0);
+  const anyone = fake.login(fake.join());
+  anyone.position = veh.position.add(new mp.Vector3(2, 0, 0));
+  fake.emit('gomp:veh:lock', anyone);
+  assert.strictEqual(veh.locked, true, 'a stranger locks it');
+  fake.emit('gomp:veh:lock', anyone, veh.id);
+  assert.strictEqual(veh.locked, false, 'and opens it');
+  assert.ok(vehicles.canLock(anyone, veh));
+  // An owned vehicle stays its owner's; a work vehicle of an organization is not anybody's.
+  const { veh: own } = driverIn();
+  assert.ok(!vehicles.canLock(anyone, own));
+  veh.setVariable('org', 'lspd');
+  assert.ok(!vehicles.canLock(anyone, veh));
 });

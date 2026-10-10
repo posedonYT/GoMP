@@ -3,6 +3,7 @@
 //   GET  /api/vehicles                                packs and their vehicles
 //   GET  /api/vehicles/schema                         editable fields (labels, units, ranges)
 //   GET  /api/vehicles/palette                        the game's paint colours (503 without the game)
+//   GET  /api/vehicles/game                           the game's own vehicles: model, make, class, speed (dealership catalog)
 //   GET  /api/vehicles/{pack}/{model}                 the vehicle (data, handling, colours, kits, lights, problems)
 //   PUT  /api/vehicles/{pack}/{model}                 changes (VehiclePatch), written into the pack
 //   POST /api/vehicles/{pack}/{model}/handling        copy the game's handling into the pack
@@ -49,6 +50,9 @@ public static class VehiclesApi
 
         api.MapGet("/vehicles/palette", (GameData g) =>
             g.State != GameState.Ready ? Results.Json(new { error = g.Status }, statusCode: 503) : Results.Json(g.Vehicles.Palette));
+
+        api.MapGet("/vehicles/game", (GameData g) =>
+            g.State != GameState.Ready ? Results.Json(new { error = g.Status }, statusCode: 503) : Results.Json(g.Vehicles.All));
 
         api.MapGet("/vehicles/{pack}/{model}", (string pack, string model, StudioOptions o, GameData g) =>
         {

@@ -3,8 +3,13 @@
 // parts the vehicle model has (mod kit 0) and sends the order; the server
 // checks it, charges it and applies it as vehicle properties.
 //
-// The tuning is saved per character and model (ch.tuning[model]) and applied
-// again whenever the character gets that model (/veh, /give, the kit vehicle).
+// The tuning belongs to one vehicle, not to a model: what the vehicle looks like
+// (colours, parts, neon... = stateOf) is kept as "look" in the record of that very
+// vehicle — a bought car (cars.js: ch.cars[i].look), a place of a house garage
+// (houses.js: garage[i].look) or the starter kit vehicle (ch.vehicleLook) — and put
+// back when that vehicle is spawned again. Another car of the same model, of the
+// same or another character, stays as it is. A vehicle with no record (an admin's)
+// is tuned for as long as it exists.
 //
 // Client protocol:
 //   server -> client  gomp:places [..., {type: 'tune', ...}], {tuning: PRICES}   (places.js)
@@ -158,18 +163,40 @@ mp.events.add('gomp:tune:buy', (player, id, order, method) => {
   if (price <= 0 && JSON.stringify(v.order) === '{}') return player.notify('Ничего не изменено');
   if (!roleplay.pay(player, price, String(method), 'Los Santos Customs')) return player.notify('~r~Недостаточно денег');
   apply(veh, v.order);
-  const model = String(veh.model);
-  ch.tuning = ch.tuning || {};
-  ch.tuning[model] = merge(ch.tuning[model], v.order);
-  accounts.save();
-  return player.notify(price > 0 ? `Тюнинг установлен за ~g~$${price}` : 'Тюнинг установлен');
+  keepLook(player, veh);
+  return player.notify(price > 0 ? `Тюнинг установлен за ~g~${price}` : 'Тюнинг установлен');
 });
 
-// Saved tuning goes onto every vehicle of that model spawned for the character.
-vehicles.onSpawn.push((veh, player) => {
+// Where a vehicle's look is kept: the modules that keep vehicles add a function
+// (player, vehicle) -> the record (an object getting .look), or null.
+const records = [];
+
+// The vehicle's current look goes into its record (if it has one).
+function keepLook(player, veh) {
+  for (const recordOf of records) {
+    const rec = recordOf(player, veh);
+    if (rec) {
+      rec.look = stateOf(veh);
+      accounts.save();
+      return rec;
+    }
+  }
+  return null;
+}
+
+// The starter kit vehicle keeps its look on the character.
+records.push((player, veh) => {
   const ch = roleplay.character(player);
-  const saved = ch && ch.tuning && ch.tuning[String(veh.model)];
-  if (saved) apply(veh, saved);
+  return ch && ch.vehicle && player.getVariable('personalVehicle') === veh && veh.model === mp.joaat(ch.vehicle) ? kitLook(ch) : null;
 });
 
-module.exports = { SHOPS, SHOP_RADIUS, DOOR_RADIUS, bayHeading, PRICES, validate, modPrice, priceOf, stateOf, apply, merge, shopAt };
+// The holder of the kit vehicle's look (from the old per-model tuning, once).
+function kitLook(ch) {
+  if (!ch.vehicleLook) {
+    const old = ch.tuning && ch.vehicle && ch.tuning[String(mp.joaat(ch.vehicle))];
+    ch.vehicleLook = { look: old || null };
+  }
+  return ch.vehicleLook;
+}
+
+module.exports = { SHOPS, SHOP_RADIUS, DOOR_RADIUS, bayHeading, PRICES, validate, modPrice, priceOf, stateOf, apply, merge, shopAt, records, keepLook, kitLook };

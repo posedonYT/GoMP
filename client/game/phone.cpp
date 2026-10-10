@@ -720,7 +720,8 @@ void GameClient::drawPhone(bool submit) {
             label("ГАРАЖ" + (loaded ? "  " + std::to_string(houseInfo_.garage.size()) + " / " + std::to_string(houseInfo_.cap) : std::string()),
                   CX + 0.008f, y, 0.26f, theme::Muted);
             y += 0.026f;
-            if (loaded && houseInfo_.garage.empty()) label("Пусто: подъедьте к дому и нажмите E", CX, y, 0.26f, theme::Muted);
+            if (loaded && houseInfo_.garage.empty())
+                label(h->hasGarage ? "Пусто. Заедьте в гараж через въезд у дома" : "Пусто: подъедьте к дому и нажмите E", CX, y, 0.26f, theme::Muted);
             if (loaded)
                 for (const auto& c : houseInfo_.garage) {
                     if (y + 0.04f > CY1) break;

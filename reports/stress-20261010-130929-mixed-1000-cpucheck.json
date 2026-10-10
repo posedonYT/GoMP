@@ -1,0 +1,94 @@
+{
+  "started": "2026-10-10T13:09:29.2252171+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "30s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "amd64",
+    "cpus": 12,
+    "go": "go1.27.1",
+    "os": "windows"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.9929480963894697,
+    "deaths": 2280,
+    "gcPauseP99Ms": 0.65536,
+    "goroutines": 23,
+    "heapMB": 428.77618408203125,
+    "hitsPerSec": 345.7004418722781,
+    "hostCommandsPerSec": 150.97191810356864,
+    "hostEventsPerSec": 75.75175468224835,
+    "hostOpsDeferred": 0,
+    "hostOpsOutPerSec": 12913.21556374155,
+    "kbInPerPlayerSec": 1.3067769817728851,
+    "kbOutPerPlayerSec": 63.077338971770665,
+    "players": 1000,
+    "relBacklogMax": 125,
+    "rssMB": 495.3828125,
+    "shotsPerSec": 603.6883256914265,
+    "syncDeferredPerSec": 0.09967336142401098,
+    "syncInPerSec": 27656.50049213556,
+    "syncOutPerSec": 1468819.8783980338,
+    "tickMaxMs": 19.001,
+    "tickP50Ms": 5.708,
+    "tickP99Ms": 12.752,
+    "ticksMissed": 0,
+    "ticksOver": 0,
+    "vehicles": 200,
+    "violations": 0,
+    "writerStalls": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1136.857,
+    "ped_p50": 67.1,
+    "ped_p95": 69.9,
+    "ped_p99": 99.9,
+    "samples": 5493209,
+    "veh_p50": 66.5,
+    "veh_p99": 73.3
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 21.14024300000001,
+    "resends": 13,
+    "syncMsgsPerBotPerSec": 1864.0436279340004
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 12.752,
+      "limit": 10,
+      "passed": false
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 19.001,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 99.9,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": false
+}

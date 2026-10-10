@@ -127,6 +127,32 @@ public sealed class VehicleGameTests
         Assert.Contains("felon2", g.Models);
     }
 
+    // The dealership catalog (tools/dealership/generate.js) is made from this list.
+    [GameFact]
+    public void Lists_the_games_vehicles_with_class_make_and_top_speed()
+    {
+        var all = fixture.Game.Vehicles.All;
+        Assert.True(all.Count > 500, $"{all.Count} vehicles");
+        var adder = all.Single(v => v.Model == "adder");
+        Assert.Equal(7, adder.Class);  // VC_SUPER
+        Assert.Equal("TRUFFADE", adder.Make);
+        Assert.Equal("VEHICLE_TYPE_CAR", adder.Type);
+        Assert.InRange(adder.Speed, 140, 180);
+        Assert.Equal(18, all.Single(v => v.Model == "police").Class);  // VC_EMERGENCY
+        Assert.Contains("FLAG_HAS_TURRET_SEAT_ON_VEHICLE", all.Single(v => v.Model == "insurgent").Flags);
+        Assert.Equal(all.Count, all.Select(v => v.Model).Distinct().Count());
+    }
+
+    [Fact]
+    public void Vehicle_classes_map_to_the_games_numbers()
+    {
+        Assert.Equal(0, GameVehicles.ClassOf("VC_COMPACT"));
+        Assert.Equal(7, GameVehicles.ClassOf("vc_super"));
+        Assert.Equal(22, GameVehicles.ClassOf("VC_OPEN_WHEEL"));
+        Assert.Equal(-1, GameVehicles.ClassOf("VC_SPACESHIP"));
+        Assert.Equal(-1, GameVehicles.ClassOf(null));
+    }
+
     [GameFact]
     public void Reads_the_real_packs_and_finds_their_problems()
     {

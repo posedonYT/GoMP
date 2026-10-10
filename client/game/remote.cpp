@@ -75,17 +75,26 @@ float moveSpeed(MoveState m) {
     }
 }
 
-// True when nothing (map geometry or objects) lies on the straight line between two points.
-bool pathClear(Entity ignore, Vec3 from, Vec3 to) {
-    constexpr int kWorld = 1, kObjects = 16;
-    int probe = SHAPETEST::START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE(from.x, from.y, from.z, to.x, to.y, to.z,
-                                                                        kWorld | kObjects, ignore, 7);
-    BOOL hit = FALSE;
-    Vector3 end{}, normal{};
-    Entity entity = 0;
-    SHAPETEST::GET_SHAPE_TEST_RESULT(probe, &hit, &end, &normal, &entity);
-    return !hit;
+// True when nothing (map geometry or objects) lies on the straight line from the ped
+// to the target, as far as the last raycast knows. A new raycast is requested (made
+// by runLosRequests() after the peds are updated, kLosPerFrame per frame): one for
+// every lagging ped in every frame was a raycast per ped per frame.
+bool pathClear(budget::Los& los, std::vector<budget::LosRequest>& reqs, uint16_t id, Vec3 from, Vec3 to, int64_t nowMs) {
+    if (los.shouldAsk(nowMs)) reqs.push_back({id, los.askedAt, {from.x, from.y, from.z}, {to.x, to.y, to.z}});
+    return los.clearFor(to.x, to.y, nowMs);
 }
+
+int64_t millis(Clock::time_point t) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
+}
+
+float distSq(Vec3 a, Vec3 b) {
+    const Vec3 d = sub(a, b);
+    return d.x * d.x + d.y * d.y + d.z * d.z;
+}
+
+// Where an entity is (or will appear) by its latest sample.
+Vec3 lastPos(const std::deque<Sample>& samples, Vec3 spawn) { return samples.empty() ? spawn : samples.back().pos; }
 
 void deleteEntity(Entity& e) {
     if (e && ENTITY::DOES_ENTITY_EXIST(e)) {
@@ -100,20 +109,73 @@ void deleteEntity(Entity& e) {
 // ------------------------------------------------------------------ frame update
 
 void GameClient::updateRemotes() {
+    ++frameNo_;
+    const Vec3 here = toVec(ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true));
+    // Spawning is spread over frames, the nearest first: a crowd streaming in at once
+    // (joining next to a hub of players) froze the game for a moment. Models that are
+    // not loaded yet do not use up the budget; a few more candidates are tried for that.
+    constexpr std::size_t kSpawnTries = 4;
+    std::vector<std::pair<float, uint16_t>> missing;
     // Vehicles first so that peds spawned this frame can be seated.
     for (auto& [id, v] : vehicles_) {
         if (v.handle && !ENTITY::DOES_ENTITY_EXIST(v.handle)) v.handle = 0;  // removed by the game
-        if (!v.handle) v.handle = spawnRemoteVehicle(v);
+        if (!v.handle) missing.emplace_back(distSq(here, lastPos(v.samples, v.spawnPos)), id);
     }
+    std::size_t spawned = 0;
+    for (uint16_t id : budget::nearestFirst(missing, budget::kVehicleSpawnsPerFrame * kSpawnTries)) {
+        if (spawned == budget::kVehicleSpawnsPerFrame) break;
+        RemoteVehicle& v = vehicles_[id];
+        if ((v.handle = spawnRemoteVehicle(v))) ++spawned;
+    }
+    missing.clear();
+    std::vector<std::pair<float, uint16_t>> present;
     for (auto& [id, r] : players_) {
         if (r.ped && !ENTITY::DOES_ENTITY_EXIST(r.ped)) {
             r.ped = 0;
             r.blip = 0;
         }
-        if (!r.ped) r.ped = spawnRemotePed(r);
+        Vec3 pos = lastPos(r.samples, r.spawnPos);
+        if (r.vehicle != kNoID)
+            if (auto it = vehicles_.find(r.vehicle); it != vehicles_.end()) pos = lastPos(it->second.samples, it->second.spawnPos);
+        (r.ped ? present : missing).emplace_back(distSq(here, pos), id);
     }
-    for (auto& [id, v] : vehicles_) updateRemoteVehicle(v);
-    for (auto& [id, r] : players_) updateRemotePlayer(r);
+    // At most kMaxRemotePeds peds: a farther one makes room for a nearer one (one per frame).
+    if (!missing.empty() && present.size() >= budget::kMaxRemotePeds) {
+        const float nearest = std::min_element(missing.begin(), missing.end())->first;
+        if (int out = budget::swapOut(present, nearest, budget::kMaxRemotePeds); out >= 0) despawnPlayer(players_[static_cast<uint16_t>(out)]);
+    }
+    const std::size_t room = present.size() < budget::kMaxRemotePeds ? budget::kMaxRemotePeds - present.size() : 0;
+    spawned = 0;
+    for (uint16_t id : budget::nearestFirst(std::move(missing), budget::kPedSpawnsPerFrame * kSpawnTries)) {
+        if (spawned == std::min(budget::kPedSpawnsPerFrame, room)) break;
+        RemotePlayer& r = players_[id];
+        if ((r.ped = spawnRemotePed(r))) ++spawned;
+    }
+    // Far entities (150 m+) are moved every third frame, taking turns by id.
+    for (auto& [id, v] : vehicles_)
+        if (v.handle && budget::updateNow(distSq(here, lastPos(v.samples, v.spawnPos)), frameNo_, id)) updateRemoteVehicle(v);
+    for (auto& [id, r] : players_)
+        if (r.ped && budget::updateNow(distSq(here, lastPos(r.samples, r.spawnPos)), frameNo_, id)) updateRemotePlayer(r);
+    runLosRequests();
+}
+
+void GameClient::runLosRequests() {
+    constexpr int kWorld = 1, kObjects = 16;
+    if (losRequests_.empty()) return;
+    budget::oldestFirst(losRequests_, budget::kLosPerFrame);
+    const int64_t now = millis(Clock::now());
+    for (const budget::LosRequest& q : losRequests_) {
+        auto it = players_.find(q.id);
+        if (it == players_.end() || !it->second.ped) continue;
+        int probe = SHAPETEST::START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE(q.from[0], q.from[1], q.from[2], q.to[0], q.to[1], q.to[2],
+                                                                            kWorld | kObjects, it->second.ped, 7);
+        BOOL hit = FALSE;
+        Vector3 end{}, normal{};
+        Entity entity = 0;
+        SHAPETEST::GET_SHAPE_TEST_RESULT(probe, &hit, &end, &normal, &entity);
+        it->second.los.answered(now, q.to[0], q.to[1], !hit);
+    }
+    losRequests_.clear();
 }
 
 bool GameClient::ensureModel(Hash model) {
@@ -159,6 +221,7 @@ Ped GameClient::spawnRemotePed(RemotePlayer& r) {
     r.moveTask = r.aimTask = false;
     r.pedWeapon = 0;
     r.lastTaskAt = r.lastAimAt = {};
+    r.los = {};
     if (r.weapon) {
         WEAPON::GIVE_WEAPON_TO_PED(ped, r.weapon, 9999, false, true);
         WEAPON::SET_CURRENT_PED_WEAPON(ped, r.weapon, true);
@@ -170,6 +233,7 @@ Ped GameClient::spawnRemotePed(RemotePlayer& r) {
     if (r.dead) ENTITY::SET_ENTITY_HEALTH(ped, 0, 0, 0);
 
     r.blip = HUD::ADD_BLIP_FOR_ENTITY(ped);
+    r.blipHidden = false;  // a new blip is shown; tickAdmin hides it again for an invisible admin
     HUD::SET_BLIP_CATEGORY(r.blip, 7);  // "other players" in the map legend
     setBlipName(r.blip, r.name.empty() ? "Player" : r.name);
     return ped;
@@ -246,7 +310,7 @@ void GameClient::updateRemotePlayer(RemotePlayer& r) {
         ENTITY::SET_ENTITY_HEADING(ped, cur.heading);
         r.moveTask = r.aimTask = false;
         r.lastTaskAt = {};
-    } else if (err > kCorrectDistance && pathClear(ped, here, {cur.pos.x, cur.pos.y, here.z})) {
+    } else if (err > kCorrectDistance && pathClear(r.los, losRequests_, r.id, here, {cur.pos.x, cur.pos.y, here.z}, millis(now))) {
         // Soft correction in the plane; the ped keeps its own ground height. Never through
         // walls or props: a blocked ped keeps walking and is teleported only past 10 m.
         ENTITY::SET_ENTITY_COORDS_NO_OFFSET(ped, cur.pos.x, cur.pos.y, here.z, false, false, false);
@@ -386,7 +450,14 @@ Vehicle GameClient::spawnRemoteVehicle(RemoteVehicle& v) {
     v.appliedDoors = -1;
     applyVehicleProps(veh, v.props, &v);
     // A freshly created vehicle (nobody has synced it yet) is placed on its wheels.
-    if (!synced && !props::find(v.props, prop::Rotation)) VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(veh, 5.0f);
+    if (!synced && !props::find(v.props, prop::Rotation)) {
+        // A frozen (non-movable) vehicle, such as a car parked in a garage, is let go for a moment to settle.
+        const Value* movable = props::find(v.props, prop::Movable);
+        const bool frozen = movable && movable->asNumber() == 0;
+        if (frozen) ENTITY::FREEZE_ENTITY_POSITION(veh, false);
+        VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(veh, 5.0f);
+        if (frozen) ENTITY::FREEZE_ENTITY_POSITION(veh, true);
+    }
 
     for (auto& [pid, r] : players_)
         if (r.ped && r.vehicle == v.id) PED::SET_PED_INTO_VEHICLE(r.ped, veh, gtaSeat(r.seat));

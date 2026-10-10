@@ -475,3 +475,47 @@ func TestConnectionRules(t *testing.T) {
 		t.Fatal("invalid name accepted")
 	}
 }
+
+// player.anticheat = false (an admin flying): the movement checks skip the player;
+// turned back on, they start afresh from where he is.
+func TestAnticheatOffForAPlayer(t *testing.T) {
+	h := newHarness(t, nil, nil)
+	flyer := h.spawned("Flyer")
+	fid := botID(flyer)
+	set := func(on bool) {
+		h.exec(func(s *Server) {
+			if err := s.apiSet(s.world.Players.Get(fid), "anticheat", &args{a: []proto.Value{on}}); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	set(false)
+	var far proto.Vec3
+	flyer.View(func(b *bot.Bot) {
+		b.Pos = b.Pos.Add(proto.Vec3{X: 200})
+		far = b.Pos
+	})
+	flyer.SendPedSync(time.Now())
+	eventually(t, 2*time.Second, "the jump accepted", func() bool {
+		ok := false
+		h.exec(func(s *Server) { ok = s.world.Players.Get(fid).Pos.Dist(far) < 0.01 })
+		return ok
+	})
+	set(true)
+	time.Sleep(50 * time.Millisecond)
+	flyer.View(func(b *bot.Bot) { b.Pos = b.Pos.Add(proto.Vec3{X: 1}) })
+	flyer.SendPedSync(time.Now())
+	var m Snapshot
+	h.exec(func(s *Server) { m = s.metrics.Snapshot() })
+	if m.Violations != 0 || m.Corrections != 0 {
+		t.Fatalf("checks after turning them back on: %+v", m)
+	}
+	// A real cheat afterwards is caught again (a later sync: the same millisecond is a duplicate).
+	time.Sleep(50 * time.Millisecond)
+	flyer.View(func(b *bot.Bot) { b.Pos = b.Pos.Add(proto.Vec3{X: 200}) })
+	flyer.SendPedSync(time.Now())
+	eventually(t, 2*time.Second, "caught again", func() bool {
+		h.exec(func(s *Server) { m = s.metrics.Snapshot() })
+		return m.Violations == 1
+	})
+}

@@ -46,6 +46,15 @@ type Event struct {
 	Reason string
 }
 
+// Process is a script host process the bridge starts and supervises (Node.js, .NET...).
+type Process struct {
+	Name    string // for the log ("node", "dotnet")
+	Command string
+	Args    []string
+	Dir     string
+	Env     []string
+}
+
 // Config configures a Bridge.
 type Config struct {
 	// Command and Args start the host process. An empty Command only listens
@@ -54,6 +63,9 @@ type Config struct {
 	Args    []string
 	Dir     string
 	Env     []string
+	// Processes are further host processes, each supervised on its own (its own
+	// watchdog kill and restart): RAGE servers run JS and C# side by side.
+	Processes []Process
 	// Watchdog kills a host that stops answering pings (0 = 10s).
 	Watchdog time.Duration
 	// Restart restarts a crashed host with exponential backoff.
@@ -83,9 +95,18 @@ type hostConn struct {
 	lastPing time.Time
 	closed   atomic.Bool
 	once     sync.Once
+	proc     *procState // the process it belongs to (nil: attached from outside)
 }
 
-// Bridge supervises one host process and its IPC connection.
+// procState is one supervised host process; its own token tells its connections apart.
+type procState struct {
+	cfg   Process
+	token string
+	mu    sync.Mutex
+	cmd   *exec.Cmd
+}
+
+// Bridge supervises the host processes and their IPC connections.
 type Bridge struct {
 	cfg      Config
 	log      *slog.Logger
@@ -98,8 +119,7 @@ type Bridge struct {
 	hosts    map[int]*hostConn
 	nextID   int
 	closed   atomic.Bool
-	procMu   sync.Mutex
-	proc     *exec.Cmd
+	procs    []*procState
 	stopProc chan struct{}
 	wg       sync.WaitGroup
 }
@@ -123,9 +143,20 @@ func Start(cfg Config) (*Bridge, error) {
 	if err := b.listen(); err != nil {
 		return nil, err
 	}
-	b.wg.Go(b.acceptLoop)
+	procs := cfg.Processes
 	if cfg.Command != "" {
-		b.wg.Go(b.superviseLoop)
+		procs = append([]Process{{Name: "host", Command: cfg.Command, Args: cfg.Args, Dir: cfg.Dir, Env: cfg.Env}}, procs...)
+	}
+	for _, pc := range procs {
+		t := make([]byte, 16)
+		if _, err := rand.Read(t); err != nil {
+			return nil, err
+		}
+		b.procs = append(b.procs, &procState{cfg: pc, token: hex.EncodeToString(t)})
+	}
+	b.wg.Go(b.acceptLoop)
+	for _, p := range b.procs {
+		b.wg.Go(func() { b.superviseLoop(p) })
 	}
 	return b, nil
 }
@@ -154,9 +185,11 @@ func (b *Bridge) listen() error {
 // Endpoint returns the network, address and token hosts must use.
 func (b *Bridge) Endpoint() (network, addr, token string) { return b.network, b.addr, b.token }
 
-// Env returns the environment variables passed to host processes.
-func (b *Bridge) Env() []string {
-	return []string{"GOMP_IPC_NETWORK=" + b.network, "GOMP_IPC_ADDR=" + b.addr, "GOMP_IPC_TOKEN=" + b.token}
+// Env returns the environment variables a host attached from outside uses.
+func (b *Bridge) Env() []string { return b.envWith(b.token) }
+
+func (b *Bridge) envWith(token string) []string {
+	return []string{"GOMP_IPC_NETWORK=" + b.network, "GOMP_IPC_ADDR=" + b.addr, "GOMP_IPC_TOKEN=" + token}
 }
 
 func (b *Bridge) push(e Event) {
@@ -230,7 +263,7 @@ func (b *Bridge) Flush() {
 		if since := now.Sub(time.Unix(0, h.lastPong.Load())); since > b.cfg.Watchdog {
 			b.log.Error("script host unresponsive, killing it", "host", h.name, "silent", since.Round(time.Millisecond))
 			b.dropHost(h, "watchdog: no response for "+since.Round(time.Second).String())
-			b.killProcess()
+			h.proc.kill()
 			continue
 		}
 		if len(h.pending) == 0 {
@@ -251,9 +284,26 @@ func (b *Bridge) Flush() {
 		default:
 			b.log.Error("script host is not reading, killing it", "host", h.name)
 			b.dropHost(h, "output queue overflow")
-			b.killProcess()
+			h.proc.kill()
 		}
 	}
+}
+
+// Silence is the longest time any connected host has gone without answering a
+// ping (pings go out every second, so a healthy host stays near 1 s). A host whose
+// event loop is blocked (synchronous work in a script) shows here long before the
+// watchdog kills it.
+func (b *Bridge) Silence() time.Duration {
+	now := time.Now().UnixNano()
+	var worst int64
+	b.mu.Lock()
+	for _, h := range b.hosts {
+		if !h.closed.Load() {
+			worst = max(worst, now-h.lastPong.Load())
+		}
+	}
+	b.mu.Unlock()
+	return time.Duration(worst)
 }
 
 // Close stops the host process and closes all connections.
@@ -262,7 +312,9 @@ func (b *Bridge) Close() error {
 		return nil
 	}
 	close(b.stopProc)
-	b.killProcess()
+	for _, p := range b.procs {
+		p.kill()
+	}
 	err := b.ln.Close()
 	b.mu.Lock()
 	hosts := b.hosts
@@ -357,7 +409,18 @@ func (b *Bridge) serve(c net.Conn) {
 		return
 	}
 	ops, err := decodeOps(frame)
-	if err != nil || len(ops) != 1 || ops[0][0] != CmdAuth || len(ops[0]) < 3 || ops[0][1] != b.token {
+	var proc *procState
+	ok := err == nil && len(ops) == 1 && ops[0][0] == CmdAuth && len(ops[0]) >= 3
+	if ok {
+		// The bridge's own token (a host attached from outside) or the token of one of its processes.
+		ok = ops[0][1] == b.token
+		for _, p := range b.procs {
+			if ops[0][1] == p.token {
+				ok, proc = true, p
+			}
+		}
+	}
+	if !ok {
 		b.log.Warn("rejected script host connection: bad authentication")
 		c.Close()
 		return
@@ -367,7 +430,7 @@ func (b *Bridge) serve(c net.Conn) {
 
 	b.mu.Lock()
 	b.nextID++
-	h := &hostConn{id: b.nextID, name: name, conn: c, out: make(chan []byte, maxOutFrames), lastPing: time.Now()}
+	h := &hostConn{id: b.nextID, name: name, conn: c, out: make(chan []byte, maxOutFrames), lastPing: time.Now(), proc: proc}
 	h.lastPong.Store(time.Now().UnixNano())
 	b.hosts[h.id] = h
 	b.mu.Unlock()
@@ -419,48 +482,54 @@ func (b *Bridge) serve(c net.Conn) {
 	}
 }
 
-func (b *Bridge) killProcess() {
-	b.procMu.Lock()
-	defer b.procMu.Unlock()
-	if b.proc != nil && b.proc.Process != nil {
-		_ = b.proc.Process.Kill()
+func (p *procState) kill() {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.cmd != nil && p.cmd.Process != nil {
+		_ = p.cmd.Process.Kill()
 	}
 }
 
-// superviseLoop runs the host process and restarts it when it exits.
-func (b *Bridge) superviseLoop() {
+// superviseLoop runs a host process and restarts it when it exits.
+func (b *Bridge) superviseLoop(p *procState) {
 	backoff := time.Second
+	log := b.log.With("process", p.cfg.Name)
 	for {
-		cmd := exec.Command(b.cfg.Command, b.cfg.Args...)
-		cmd.Dir = b.cfg.Dir
-		cmd.Env = append(append(os.Environ(), b.cfg.Env...), b.Env()...)
+		cmd := exec.Command(p.cfg.Command, p.cfg.Args...)
+		cmd.Dir = p.cfg.Dir
+		cmd.Env = append(append(os.Environ(), p.cfg.Env...), b.envWith(p.token)...)
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
 		started := time.Now()
 		if err := cmd.Start(); err != nil {
-			b.log.Error("cannot start script host", "cmd", b.cfg.Command, "err", err)
+			log.Error("cannot start script host", "cmd", p.cfg.Command, "err", err)
 		} else {
-			b.procMu.Lock()
-			b.proc = cmd
-			b.procMu.Unlock()
+			p.mu.Lock()
+			p.cmd = cmd
+			p.mu.Unlock()
 			var pipes sync.WaitGroup
 			pipes.Go(func() { b.pipeLog(stdout, slog.LevelInfo) })
 			pipes.Go(func() { b.pipeLog(stderr, slog.LevelWarn) })
 			pipes.Wait()
 			err := cmd.Wait()
-			b.procMu.Lock()
-			b.proc = nil
-			b.procMu.Unlock()
+			p.mu.Lock()
+			p.cmd = nil
+			p.mu.Unlock()
 			if b.closed.Load() {
 				return
 			}
-			b.log.Error("script host exited", "err", err, "uptime", time.Since(started).Round(time.Millisecond))
+			log.Error("script host exited", "err", err, "uptime", time.Since(started).Round(time.Millisecond))
 		}
-		// Make sure a lingering connection of the dead process is dropped.
+		// A lingering connection of the dead process is dropped (the others' stay).
 		b.mu.Lock()
 		var stale []*hostConn
 		for _, h := range b.hosts {
-			stale = append(stale, h)
+			if h.proc == p {
+				stale = append(stale, h)
+			}
 		}
 		b.mu.Unlock()
 		for _, h := range stale {
@@ -472,7 +541,7 @@ func (b *Bridge) superviseLoop() {
 		if time.Since(started) > stableUptime {
 			backoff = time.Second
 		}
-		b.log.Info("restarting script host", "in", backoff)
+		log.Info("restarting script host", "in", backoff)
 		select {
 		case <-b.stopProc:
 			return

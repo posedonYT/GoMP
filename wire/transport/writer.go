@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -38,13 +39,25 @@ func (b ipv6Batch) WriteBatch(ms []ipv4.Message, flags int) (int, error) {
 	return b.c.WriteBatch(ms, flags)
 }
 
+// writerCount is how many goroutines write to the socket. With sendmmsg (Linux)
+// two keep up with any load. Windows has no batched send: every datagram is a
+// system call (~1.5M a second at 1000 players), and two writers fell behind and
+// blocked the game loop, so there it scales with the cores.
+func writerCount(goos string, procs int) int {
+	if goos == "windows" {
+		return max(2, min(procs, 8))
+	}
+	return 2
+}
+
 // socketWriter drains packet batches on dedicated goroutines so the game
 // loop never waits for sendto. On Linux it uses sendmmsg.
 type socketWriter struct {
-	pc    PacketConn
-	batch batchWriter
-	q     chan []outPacket
-	wg    sync.WaitGroup
+	pc     PacketConn
+	batch  batchWriter
+	q      chan []outPacket
+	wg     sync.WaitGroup
+	stalls atomic.Uint64
 }
 
 func newSocketWriter(pc PacketConn, workers int) *socketWriter {
@@ -67,10 +80,20 @@ func newSocketWriter(pc PacketConn, workers int) *socketWriter {
 // enqueue hands a batch to the writers (blocking when they fall behind,
 // which back-pressures the game loop instead of growing memory).
 func (w *socketWriter) enqueue(b []outPacket) {
-	if len(b) > 0 {
+	if len(b) == 0 {
+		return
+	}
+	select {
+	case w.q <- b:
+	default:
+		// Full: the game loop waits. Counted, so a stall shows in the metrics.
+		w.stalls.Add(1)
 		w.q <- b
 	}
 }
+
+// Stalls is how many times the game loop had to wait for the writers.
+func (w *socketWriter) Stalls() uint64 { return w.stalls.Load() }
 
 func (w *socketWriter) close() {
 	close(w.q)

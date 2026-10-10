@@ -37,6 +37,7 @@ async function renameMap(studio, name) {
   try {
     await api.renameMap(name, to);
     if (studio.doc && studio.doc.name === name) studio.doc.name = to;
+    if (studio.decorReturn === name) studio.decorReturn = to;  // the map to reopen after the decor
     await studio.refreshMaps();
     studio.updateTitle();
   } catch (e) {
@@ -90,15 +91,26 @@ export function renderOutliner(studio) {
 
 // ------------------------------------------------------------------ catalog
 
-export function renderCatalog(studio, results, state) {
+// What a catalog item is placed as: its name, or the hash when the game has no name for it.
+export const modelOf = (a) => a.name ?? a.hash;
+const hex = (hash) => `0x${hash.toString(16).toUpperCase().padStart(8, '0')}`;
+
+// more: whether a "Показать ещё" page exists.
+export function renderCatalog(studio, results, state, more = false) {
   $('#catalog-state').textContent = state || '';
+  $('#catalog-more').hidden = !more;
   $('#catalog').replaceChildren(...results.map((a) => {
     const size = a.bbMax.map((v, i) => (v - a.bbMin[i]).toFixed(1)).join(' × ');
+    const label = a.name ?? (a.ytyp ? `${hex(a.hash)} · ${a.ytyp}` : hex(a.hash));
+    let hover = null;
     return h('li', {
-      class: studio.placing && studio.placing.model === a.name ? 'on' : '',
-      title: `${a.name} (${a.ytyp || ''})`,
+      class: studio.placing && studio.placing.model === modelOf(a) ? 'on' : '',
+      title: `${a.name ?? hex(a.hash)} (${a.ytyp || ''})`,
       onclick: () => studio.startPlacing(a),
-    }, h('span', { class: 'grow' }, a.name), h('span', { class: 'tag' }, size));
+      // Fetched while the pointer rests on the row: the click then shows the model at once.
+      onpointerenter: () => { hover = setTimeout(() => studio.models.load(a.hash), 120); },
+      onpointerleave: () => clearTimeout(hover),
+    }, h('span', { class: 'grow' }, label), h('span', { class: 'tag' }, size));
   }));
 }
 
@@ -163,6 +175,15 @@ export function renderInspector(studio) {
 export function renderMapProps(studio) {
   const box = $('#map-props');
   const doc = studio.doc;
+  box.previousElementSibling.textContent = doc && doc.decor ? 'Декор' : 'Карта';
+  if (doc && doc.decor) {
+    // No name, no "enabled": the props are saved into houses.json, not as a map.
+    box.replaceChildren(
+      h('p', {}, doc.decor.title),
+      h('div', { class: 'field' }, h('label', {}, 'Предметов'), h('span', {}, `${doc.objects.size} из 300`)),
+      h('p', { class: 'hint' }, 'Ctrl+S записывает декор в интерьер и сохраняет дома. «Готово» над сценой — выйти.'));
+    return;
+  }
   if (!doc) {
     box.replaceChildren(h('p', { class: 'hint' }, 'Карта не открыта.'));
     return;

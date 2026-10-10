@@ -54,6 +54,7 @@ type options struct {
 	encryption bool
 	label      string
 	isolate    bool
+	auth       bool
 }
 
 func main() {
@@ -75,6 +76,7 @@ func main() {
 	flag.StringVar(&o.reportDir, "report", "reports", "directory for reports")
 	flag.BoolVar(&o.encryption, "encryption", true, "enable transport encryption on the launched server")
 	flag.StringVar(&o.label, "label", "", "label appended to the report name")
+	flag.BoolVar(&o.auth, "auth", false, "every bot logs in with a password first (scrypt in Node, like the roleplay gamemode): a login flood")
 	flag.BoolVar(&o.isolate, "isolate", true, "lower the bots' scheduling priority so they do not compete with the server for CPU")
 	flag.Parse()
 	if err := run(o); err != nil {
@@ -179,6 +181,9 @@ func launchServer(ctx context.Context, o options) (*exec.Cmd, string, error) {
 	}
 	cmd := exec.CommandContext(ctx, bin, "-dir", dir)
 	cmd.Env = append(os.Environ(), "GOMP_STRESS_PROFILE="+o.profile)
+	if o.auth {
+		cmd.Env = append(cmd.Env, "GOMP_STRESS_AUTH=1")
+	}
 	logf, _ := os.Create(filepath.Join(dir, "server.log"))
 	cmd.Stdout, cmd.Stderr = logf, logf
 	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
@@ -193,30 +198,40 @@ func launchServer(ctx context.Context, o options) (*exec.Cmd, string, error) {
 
 type serverMetrics struct {
 	Server struct {
-		Ticks        uint64  `json:"ticks"`
-		TickP50Ms    float64 `json:"tickP50Ms"`
-		TickP99Ms    float64 `json:"tickP99Ms"`
-		TickMaxMs    float64 `json:"tickMaxMs"`
-		Players      int     `json:"players"`
-		Vehicles     int     `json:"vehicles"`
-		SyncIn       uint64  `json:"syncIn"`
-		SyncOut      uint64  `json:"syncOut"`
-		SyncDeferred uint64  `json:"syncDeferred"`
-		ShotsOK      uint64  `json:"shotsAccepted"`
-		ShotsBad     uint64  `json:"shotsRejected"`
-		HitsOK       uint64  `json:"hitsAccepted"`
-		HitsBad      uint64  `json:"hitsRejected"`
-		Deaths       uint64  `json:"deaths"`
-		Violations   uint64  `json:"violations"`
-		Corrections  uint64  `json:"corrections"`
-		HostEvents   uint64  `json:"hostEvents"`
-		HostOpsIn    uint64  `json:"hostOpsIn"`
+		Ticks        uint64             `json:"ticks"`
+		TickP50Ms    float64            `json:"tickP50Ms"`
+		TickP99Ms    float64            `json:"tickP99Ms"`
+		TickMaxMs    float64            `json:"tickMaxMs"`
+		Players      int                `json:"players"`
+		Vehicles     int                `json:"vehicles"`
+		SyncIn       uint64             `json:"syncIn"`
+		SyncOut      uint64             `json:"syncOut"`
+		SyncDeferred uint64             `json:"syncDeferred"`
+		ShotsOK      uint64             `json:"shotsAccepted"`
+		ShotsBad     uint64             `json:"shotsRejected"`
+		HitsOK       uint64             `json:"hitsAccepted"`
+		HitsBad      uint64             `json:"hitsRejected"`
+		Deaths       uint64             `json:"deaths"`
+		Violations   uint64             `json:"violations"`
+		Corrections  uint64             `json:"corrections"`
+		HostEvents   uint64             `json:"hostEvents"`
+		HostOpsIn    uint64             `json:"hostOpsIn"`
+		HostOpsOut   uint64             `json:"hostOpsOut"`
+		TicksOver    uint64             `json:"ticksOver"`
+		TicksMissed  uint64             `json:"ticksMissed"`
+		HostOpsLater uint64             `json:"hostOpsDeferred"`
+		HostsDown    uint64             `json:"hostsDown"`
+		HostSilence  float64            `json:"hostSilenceMaxMs"`
+		PhaseAvgMs   map[string]float64 `json:"phaseAvgMs"`
+		PhaseMaxMs   map[string]float64 `json:"phaseMaxMs"`
 		Net          struct {
 			BytesOut uint64  `json:"BytesOut"`
 			BytesIn  uint64  `json:"BytesIn"`
 			Resends  uint64  `json:"Resends"`
 			AvgRTTMs float64 `json:"AvgRTTMs"`
 			AvgLoss  float64 `json:"AvgLoss"`
+			Stalls   uint64  `json:"WriterStalls"`
+			RelMax   int     `json:"RelBacklogMax"`
 		} `json:"net"`
 	} `json:"server"`
 	Runtime struct {
@@ -395,6 +410,7 @@ type report struct {
 	ConnectErrors map[string]int     `json:"connectErrors"`
 	Disconnects   map[string]int     `json:"disconnects"`
 	Server        map[string]float64 `json:"server"`
+	Phases        map[string]float64 `json:"tickPhasesMs"`
 	Latency       map[string]float64 `json:"syncLatencyMs"`
 	Bots          map[string]float64 `json:"bots"`
 	Checks        []check            `json:"checks"`
@@ -524,7 +540,7 @@ func run(o options) error {
 		Disconnects:   f.disconnects,
 		Connected:     connected,
 		Options: map[string]any{"bots": o.bots, "profile": o.profile, "mix": o.mix, "duration": o.duration.String(),
-			"loss": o.loss, "latency": o.latency.String(), "jitter": o.jitter.String(), "encryption": o.encryption, "isolate": o.isolate},
+			"loss": o.loss, "latency": o.latency.String(), "jitter": o.jitter.String(), "encryption": o.encryption, "isolate": o.isolate, "auth": o.auth},
 		Host: map[string]any{"os": runtime.GOOS, "arch": runtime.GOARCH, "cpus": runtime.NumCPU(), "go": runtime.Version()},
 		Latency: map[string]float64{
 			"ped_p50": f.pedLatency.quantile(0.5), "ped_p95": f.pedLatency.quantile(0.95), "ped_p99": f.pedLatency.quantile(0.99),
@@ -554,10 +570,30 @@ func run(o options) error {
 			"violations":         float64(s.Violations - before.Server.Violations),
 			"hostEventsPerSec":   float64(s.HostEvents-before.Server.HostEvents) / elapsed,
 			"hostCommandsPerSec": float64(s.HostOpsIn-before.Server.HostOpsIn) / elapsed,
+			"hostOpsOutPerSec":   float64(s.HostOpsOut-before.Server.HostOpsOut) / elapsed,
+			"hostOpsDeferred":    float64(s.HostOpsLater - before.Server.HostOpsLater),
+			"ticksOver":          float64(s.TicksOver - before.Server.TicksOver),
+			"ticksMissed":        float64(s.TicksMissed - before.Server.TicksMissed),
+			"writerStalls":       float64(s.Net.Stalls - before.Server.Net.Stalls),
+			"relBacklogMax":      float64(s.Net.RelMax),
+			"hostsDown":          float64(s.HostsDown),
+			"hostSilenceMaxMs":   s.HostSilence,
+		}
+		// Where the tick goes: the average and the longest run of each phase.
+		rep.Phases = map[string]float64{}
+		for k, v := range s.PhaseAvgMs {
+			rep.Phases[k+" avg"] = v
+		}
+		for k, v := range s.PhaseMaxMs {
+			rep.Phases[k+" max"] = v
 		}
 		rep.Checks = append(rep.Checks,
 			check{Name: "tick p99 ms", Value: s.TickP99Ms, Limit: 10},
 			check{Name: "tick max ms (budget 33.3)", Value: s.TickMaxMs, Limit: 33.3},
+			// Pings go out every second: a responsive Node answers within ~1 s; the
+			// watchdog kills it at 10 s and every script entity goes with it.
+			check{Name: "script host silence max ms", Value: s.HostSilence, Limit: 2500},
+			check{Name: "script hosts lost", Value: float64(s.HostsDown), Limit: 0},
 		)
 	}
 	rep.Checks = append(rep.Checks,
@@ -625,6 +661,7 @@ func writeReport(o options, rep report) error {
 		}
 	}
 	section("Сервер", rep.Server)
+	section("Фазы тика (мс)", rep.Phases)
 	section("Задержка синхронизации бот→бот (мс)", rep.Latency)
 	section("Боты", rep.Bots)
 	if len(rep.ConnectErrors)+len(rep.Disconnects) > 0 {

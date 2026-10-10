@@ -60,8 +60,12 @@ class EntityMpPool {
     for (const e of this.toArray()) fn(e, ...args);
   }
 
+  // The filters walk the pool once and copy only the matches (the callback may
+  // still create or destroy entities safely).
   forEachInDimension(dimension, fn) {
-    for (const e of this.toArray()) if (inDim(e, dimension)) fn(e, e.id);
+    const hits = [];
+    for (const e of this._items.values()) if (inDim(e, dimension)) hits.push(e);
+    for (const e of hits) fn(e, e.id);
   }
 
   forEachInRange(position, range, dimension, fn) {
@@ -70,10 +74,12 @@ class EntityMpPool {
       dimension = undefined;
     }
     const r2 = range * range;
-    for (const e of this.toArray()) {
+    const hits = [];
+    for (const e of this._items.values()) {
       if (dimension !== undefined && !inDim(e, dimension)) continue;
-      if (e.distSquared(position) <= r2) fn(e, e.id);
+      if (e.distSquared(position) <= r2) hits.push(e);
     }
+    for (const e of hits) fn(e, e.id);
   }
 
   getClosest(position, limit) {
@@ -85,13 +91,26 @@ class EntityMpPool {
   }
 
   _closest(position, dimension, limit) {
-    const list = this.toArray()
-      .filter((e) => dimension === undefined || inDim(e, dimension))
-      .map((e) => [e, e.distSquared(position)])
-      .sort((a, b) => a[1] - b[1])
-      .map((p) => p[0]);
-    if (limit === undefined) return list[0];
-    return list.slice(0, limit);
+    if (limit === undefined) {
+      // One pass, no sort: the nearest only.
+      let best;
+      let bestD = Infinity;
+      for (const e of this._items.values()) {
+        if (dimension !== undefined && !inDim(e, dimension)) continue;
+        const d = e.distSquared(position);
+        if (d < bestD) {
+          bestD = d;
+          best = e;
+        }
+      }
+      return best;
+    }
+    const list = [];
+    for (const e of this._items.values()) {
+      if (dimension === undefined || inDim(e, dimension)) list.push([e, e.distSquared(position)]);
+    }
+    list.sort((a, b) => a[1] - b[1]);
+    return list.slice(0, limit).map((p) => p[0]);
   }
 
   [Symbol.iterator]() {

@@ -40,6 +40,20 @@ public sealed class ApiTests : IDisposable
     private Task<HttpResponseMessage> Put(string name, string json) =>
         http.PutAsync("/api/maps/" + Uri.EscapeDataString(name), new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
 
+    // The browser marks world models with low=...: whatever the spelling, the request must
+    // reach the handler (here 503: no game), never fail in binding (400 broke the whole world).
+    [Theory]
+    [InlineData("")]
+    [InlineData("&low=true")]
+    [InlineData("&low=1")]
+    [InlineData("&low=0")]
+    [InlineData("&low=yes")]
+    public async Task A_model_request_with_any_low_flag_reaches_the_handler(string low)
+    {
+        var r = await http.GetAsync($"/api/models/prop_bench_01a.glb?lod=high&tex=128{low}");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, r.StatusCode);
+    }
+
     [Fact]
     public async Task Status_tells_the_folders_and_that_there_is_no_game()
     {
@@ -48,6 +62,10 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("none", s.GetProperty("gta").GetProperty("state").GetString());
         var catalog = await http.GetAsync("/api/catalog?q=bench");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, catalog.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await http.GetAsync("/api/catalog?q=gate&cat=fences&offset=200&limit=200")).StatusCode);
+        var categories = await http.GetAsync("/api/catalog/categories");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, categories.StatusCode);
+        Assert.Equal("none", (await categories.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("state").GetString());
     }
 
     // The pages are built into the program (one file to copy), without the tests.

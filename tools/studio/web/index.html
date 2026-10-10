@@ -53,6 +53,7 @@
       <button data-tab="objects">Объекты</button>
       <button data-tab="catalog">Каталог</button>
       <button data-tab="vehicles">Машины</button>
+      <button data-tab="houses">Дома</button>
     </nav>
     <section data-panel="maps" class="panel on">
       <div class="row">
@@ -67,12 +68,15 @@
       <ul id="outliner" class="list compact"></ul>
     </section>
     <section data-panel="catalog" class="panel">
-      <input id="catalog-search" type="search" placeholder="Модель: bench, prop_bin, fence…">
+      <select id="catalog-category" title="Категория"><option value="">Все модели</option></select>
+      <input id="catalog-search" type="search" placeholder="Модель или слово: gate, wall, bench…">
       <p id="catalog-state" class="hint"></p>
       <ul id="catalog" class="list compact"></ul>
+      <button id="catalog-more" hidden>Показать ещё</button>
       <p class="hint">Выберите модель и кликните по миру, чтобы поставить. Esc — закончить.</p>
     </section>
     <section data-panel="vehicles" class="panel" id="vehicles-panel"></section>
+    <section data-panel="houses" class="panel" id="houses-panel"></section>
   </aside>
 
   <main id="view">

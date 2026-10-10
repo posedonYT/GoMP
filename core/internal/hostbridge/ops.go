@@ -8,15 +8,22 @@
 // array whose first element is the operation name. See docs/ipc.md.
 package hostbridge
 
+// MirrorStride is the number of values per entity in OpUpdates.
+const MirrorStride = 8
+
 // Protocol version spoken with hosts.
 const Version = 1
 
 // Operations sent by the core to hosts.
 const (
-	OpHello    = "hello"    // [hello, version, config, info]
-	OpCreate   = "create"   // [create, type, id, gen, state]
-	OpDestroy  = "destroy"  // [destroy, type, id, gen]
-	OpUpdate   = "update"   // [update, type, id, partialState]
+	OpHello   = "hello"   // [hello, version, config, info]
+	OpCreate  = "create"  // [create, type, id, gen, state]
+	OpDestroy = "destroy" // [destroy, type, id, gen]
+	OpUpdate  = "update"  // [update, type, id, partialState]
+	// OpUpdates carries the synced state (position etc.) of many entities in
+	// one flat array, MirrorStride values each:
+	// type, id, pos, vel, rot (players: heading in x), flags, move|steer, aim|nil.
+	OpUpdates  = "updates"  // [updates, [values...]]
 	OpEvent    = "event"    // [event, name, args]
 	OpProcReq  = "procReq"  // [procReq, callId, player, name, args]
 	OpProcRes  = "procRes"  // [procRes, hostCallId, ok, valueOrError]

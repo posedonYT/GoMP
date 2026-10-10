@@ -4,21 +4,36 @@
 //   server -> client  gomp:auth:show {error?}         login screen
 //                     gomp:chars:show [chars], max    character list (creator if empty)
 //                     gomp:creator:error message
+//                     gomp:spawn:show [options]       where to appear: [{id:'last'|'house', title, sub, pos:[3]|null}]
 //                     gomp:ui:close                   back to the game
 //                     gomp:hud:online count
 //   client -> server  gomp:auth:login login, password
 //                     gomp:auth:register login, password
-//                     gomp:chars:select id
+//                     gomp:chars:select id            shows the spawn choice (the character is not in the game yet)
+//                     gomp:spawn:choose which         'last' or 'house' (anything else counts as 'last')
 //                     gomp:chars:create {first, last, gender, kit, appearance}
+// A new character, and a guest/bot, spawns at once without the choice.
 // Shared variables: static (everyone), own: cash, bank.
 
 const accounts = require('./accounts');
+const { limiter, persistent } = require('./ratelimit');
 const inventory = require('./inventory');
 const vehicles = require('./vehicles');
 const drops = require('./drops');
 
 const LOBBY = new mp.Vector3(-425.5, 1123.6, 325.85);  // Galileo Observatory
 const MAX_LOGIN_ATTEMPTS = 5;
+// Per IP (a reconnect does not reset them): a password costs ~50 ms of scrypt,
+// so these keep a spammer from loading the server.
+const authLimit = limiter({ rate: 10 / 60, burst: 10 });     // logins: 10 a minute
+const registerLimit = limiter({ rate: 3 / 600, burst: 3 }); // new accounts: 3 per 10 minutes
+// This machine (the owner, local bots and tests) is trusted, like in admin.js.
+const LOCAL = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const limited = (lim, player) => !LOCAL.has(player.ip) && !lim.allow(player.ip);
+// With Redis new accounts are also counted there (3 per 10 minutes per address), so a
+// restart of the server does not reset the limit.
+const registerAllowed = (player) =>
+  LOCAL.has(player.ip) ? Promise.resolve(true) : persistent(accounts.store.backend, `reg:${player.ip}`, 3, 600);
 const spawnPoints = [
   new mp.Vector3(-425.517, 1123.620, 325.854),
   new mp.Vector3(-1037.4, -2737.7, 20.17),
@@ -29,7 +44,7 @@ const spawnPoints = [
 // Per-player session state (not replicated).
 const sessions = new Map();
 const session = (player) => {
-  if (!sessions.has(player.id)) sessions.set(player.id, { account: null, character: null, attempts: 0 });
+  if (!sessions.has(player.id)) sessions.set(player.id, { account: null, character: null, pending: null, attempts: 0 });
   return sessions.get(player.id);
 };
 
@@ -100,41 +115,77 @@ function spawnGuest(player) {
 
 mp.events.add('playerReady', (player) => (isLocalBot(player) ? spawnGuest(player) : enterLobby(player)));
 
+// The password is checked off the game's thread; the answer comes back later.
+// One check at a time per player; a player who left meanwhile is forgotten.
 mp.events.add('gomp:auth:login', (player, login, password) => {
   const s = session(player);
-  if (s.account) return;
-  const r = accounts.login(login, password);
-  if (r.error) {
-    s.attempts++;
-    console.log(`[auth] failed login "${login}" by ${player.ip} (${s.attempts})`);
-    if (s.attempts >= MAX_LOGIN_ATTEMPTS) return player.kick('Слишком много неудачных попыток входа');
-    return player.call('gomp:auth:show', [{ error: r.error, login: String(login || '') }]);
+  if (s.account || s.busy) return;
+  if (limited(authLimit, player)) {
+    return player.call('gomp:auth:show', [{ error: `Слишком много попыток, подождите ${authLimit.wait(player.ip)} с`, login: String(login || '') }]);
   }
-  s.account = r.account;
-  console.log(`[auth] ${r.account.login} logged in from ${player.ip}`);
-  return showCharacters(player);
+  s.busy = true;
+  accounts.login(login, password, (r) => {
+    s.busy = false;
+    if (!mp.players.exists(player) || sessions.get(player.id) !== s) return;
+    if (r.error) {
+      s.attempts++;
+      console.log(`[auth] failed login "${login}" by ${player.ip} (${s.attempts})`);
+      if (s.attempts >= MAX_LOGIN_ATTEMPTS) return player.kick('Слишком много неудачных попыток входа');
+      return player.call('gomp:auth:show', [{ error: r.error, login: String(login || '') }]);
+    }
+    s.account = r.account;
+    console.log(`[auth] ${r.account.login} logged in from ${player.ip}`);
+    return showCharacters(player);
+  });
 });
 
 mp.events.add('gomp:auth:register', (player, login, password) => {
   const s = session(player);
-  if (s.account) return;
-  const r = accounts.register(login, password);
-  if (r.error) return player.call('gomp:auth:show', [{ error: r.error, login: String(login || ''), register: true }]);
-  s.account = r.account;
-  console.log(`[auth] new account ${r.account.login} from ${player.ip}`);
-  return showCharacters(player);
+  if (s.account || s.busy) return;
+  if (limited(registerLimit, player)) {
+    return player.call('gomp:auth:show', [{ error: 'Слишком много новых аккаунтов с вашего адреса, попробуйте позже', login: String(login || ''), register: true }]);
+  }
+  s.busy = true;
+  const gone = () => !mp.players.exists(player) || sessions.get(player.id) !== s;
+  const create = () =>
+    accounts.register(login, password, (r) => {
+      s.busy = false;
+      if (gone()) return;
+      if (r.error) return player.call('gomp:auth:show', [{ error: r.error, login: String(login || ''), register: true }]);
+      s.account = r.account;
+      console.log(`[auth] new account ${r.account.login} from ${player.ip}`);
+      return showCharacters(player);
+    });
+  if (accounts.store.kind !== 'redis') return create();
+  return registerAllowed(player).then((ok) => {
+    if (gone()) return void (s.busy = false);
+    if (ok) return create();
+    s.busy = false;
+    return player.call('gomp:auth:show', [{ error: 'Слишком много новых аккаунтов с вашего адреса, попробуйте позже', login: String(login || ''), register: true }]);
+  });
 });
 
 mp.events.add('gomp:chars:select', (player, id) => {
   const s = session(player);
-  if (!s.account || s.character) return;
+  // While a choice is pending the character stays null: no chat, no commands, no position saving.
+  if (!s.account || s.character || s.pending) return;
   const ch = accounts.getCharacter(s.account, id);
-  if (ch) spawnCharacter(player, ch);
+  if (!ch) return;
+  s.pending = ch;
+  player.call('gomp:spawn:show', [spawnOptions(ch)]);
+});
+
+mp.events.add('gomp:spawn:choose', (player, which) => {
+  const s = session(player);
+  if (!s.account || s.character || !s.pending) return;
+  const ch = s.pending;
+  s.pending = null;
+  spawnCharacter(player, ch, false, which === 'house' ? 'house' : 'last');
 });
 
 mp.events.add('gomp:chars:create', (player, data) => {
   const s = session(player);
-  if (!s.account || s.character) return;
+  if (!s.account || s.character || s.pending) return;
   const r = accounts.createCharacter(s.account, data || {});
   if (r.error) return player.call('gomp:creator:error', [r.error]);
   console.log(`[chars] ${s.account.login} created ${r.character.first} ${r.character.last} (static ${r.character.static})`);
@@ -170,24 +221,44 @@ function giveItems(player, ch) {
   }
 }
 
-function spawnPersonalVehicle(player, ch) {
+// The cards of the spawn screen: the last place always, the house only for its owner.
+function spawnOptions(ch) {
+  const options = [{ id: 'last', title: 'Там, где вышел', sub: ch.pos ? 'Последнее место' : 'Случайное место', pos: ch.pos ? [...ch.pos] : null }];
+  const home = require('./houses').ownedBy(ch.static);
+  if (home) options.push({ id: 'house', title: 'Дом', sub: home.name, pos: [home.x, home.y, home.z] });
+  return options;
+}
+
+// `spot` {x, y, z, heading}: the garage point of a house (a car there stands on the road), else next to the player.
+function spawnPersonalVehicle(player, ch, spot = null) {
   if (!ch.vehicle) return;
   const old = player.getVariable('personalVehicle');
   if (old && mp.vehicles.exists(old)) old.destroy();
   const p = player.position;
-  const veh = mp.vehicles.new(mp.joaat(ch.vehicle), new mp.Vector3(p.x + 3, p.y, p.z + 0.5), {
-    heading: player.heading,
+  const pos = spot ? new mp.Vector3(spot.x, spot.y, spot.z - 0.5) : new mp.Vector3(p.x + 3, p.y, p.z + 0.5);
+  const veh = mp.vehicles.new(mp.joaat(ch.vehicle), pos, {
+    heading: spot ? spot.heading : player.heading,
     numberPlate: `GO${String(ch.static).padStart(5, '0')}`,
-    dimension: player.dimension,
+    dimension: spot ? 0 : player.dimension,
   });
   vehicles.setup(veh, ch.static, ch.vehicleFuel);
+  // Its own look (colours, tuning), else one colour for everybody.
+  const tuning = require('./tuning');
+  const look = tuning.kitLook(ch).look;
+  if (look) tuning.apply(veh, look);
+  else vehicles.paint(veh);
   player.setVariable('personalVehicle', veh);
   for (const fn of vehicles.onSpawn) fn(veh, player);
 }
 
-function spawnCharacter(player, ch, isNew = false) {
+// Called once a character is in the game (dealership.js, orgs.js send their data).
+const onSpawn = [];
+
+function spawnCharacter(player, ch, isNew = false, at = 'last') {
+  const houses = require('./houses');
   const s = session(player);
   s.character = ch;
+  accounts.play(ch);
   player.name = `${ch.first} ${ch.last}`;
   player.setVariable('static', ch.static);
   player.setOwnVariables({ cash: ch.cash, bank: ch.bank, account: s.account.login, kit: ch.kit, gender: ch.gender });
@@ -195,20 +266,27 @@ function spawnCharacter(player, ch, isNew = false) {
   inventory.ensure(ch);
   inventory.applyEquipment(player, ch);
   inventory.sendDefs(player);
-  player.dimension = 0;
-  const pos = ch.pos ? new mp.Vector3(ch.pos[0], ch.pos[1], ch.pos[2]) : randomSpawn();
-  player.spawn(pos, ch.heading || 0);
+  // The house may have been sold since the screen was shown: then the last place.
+  const home = at === 'house' ? houses.ownedBy(ch.static) : null;
+  const inHome = !!home && houses.spawnInside(player, home);
+  if (!inHome) {
+    player.dimension = 0;
+    const pos = ch.pos ? new mp.Vector3(ch.pos[0], ch.pos[1], ch.pos[2]) : randomSpawn();
+    player.spawn(pos, ch.heading || 0);
+  }
   giveItems(player, ch);
   player.call('gomp:ui:close', []);
   inventory.sync(player, ch);
   require('./places').sendPlaces(player);
-  require('./houses').send(player);
-  spawnPersonalVehicle(player, ch);
+  houses.send(player);
+  if (inHome) houses.sendInside(player);  // after ui:close, so the client is already in the game
+  spawnPersonalVehicle(player, ch, inHome ? houses.garageSpot(home) : null);
   player.outputChatBox(isNew
     ? `!{#8ef}Добро пожаловать, ${ch.first}! Ваш статик: ${ch.static}.`
     : `!{#8ef}С возвращением, ${ch.first}! Статик: ${ch.static}.`);
   mp.players.broadcast(`!{#8ef}${player.name} [${ch.static}] вошёл в игру.`);
   broadcastOnline();
+  for (const fn of onSpawn) fn(player, ch);
 }
 
 mp.events.add('playerDeath', (player) => {
@@ -300,7 +378,7 @@ function setMoney(player, cash, bank) {
   ch.cash = Math.max(0, Math.round(cash));
   ch.bank = Math.max(0, Math.round(bank));
   player.setOwnVariables({ cash: ch.cash, bank: ch.bank });
-  accounts.save();
+  accounts.save(ch);
   return true;
 }
 
@@ -331,13 +409,22 @@ mp.events.add('playerQuit', (player) => {
     veh.destroy();
   }
   sessions.delete(player.id);
+  if (ch && !ch.guest) accounts.release(ch);
   accounts.save();
   setTimeout(broadcastOnline, 100);
 });
 
+// The store is closed after every shutdown handler has run (houses.js syncs its
+// garages in its own handler), and the core waits for it.
 mp.events.add('serverShutdown', () => {
   mp.players.forEach(storePosition);
-  accounts.flush();
+  accounts.save();
+  mp.events.delayShutdown = true;
+  setImmediate(() => {
+    accounts.store.close()
+      .catch((e) => console.error('[storage] on shutdown:', e))
+      .finally(() => { mp.events.delayShutdown = false; });
+  });
 });
 
 // A player in the game by the static of their character.
@@ -379,4 +466,4 @@ function deposit(player, sum, what) {
   return setMoney(player, ch.cash, ch.bank + n);
 }
 
-module.exports = { isLogged, character, setMoney, pay, deposit, logBank, randomSpawn, findByStatic };
+module.exports = { isLogged, character, setMoney, pay, deposit, logBank, randomSpawn, findByStatic, onSpawn };

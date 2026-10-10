@@ -450,6 +450,16 @@ func (s *Server) setPlayer(p *world.Player, key string, x *args) error {
 	case "disableOutgoingSync":
 		p.DisableOutgoingSync = x.bool(0)
 		s.markSync(p)
+	case "anticheat":
+		// false: the movement checks skip this player (an admin flying through walls).
+		// Turned back on, the checks start afresh from where the player is.
+		on := x.bool(0)
+		if c != nil {
+			if on && c.acExempt {
+				c.mover.Reset()
+			}
+			c.acExempt = !on
+		}
 	case "eyeColor":
 		s.setProps(p, proto.Props{proto.PropEyeColor: x.int(0)}, true)
 	case "gameType":

@@ -146,7 +146,8 @@ public:
 
     // Starts connecting; progress happens in update().
     bool connect(const std::string& host, uint16_t port, std::vector<uint8_t> payload, std::string& err);
-    // Receives datagrams, advances the handshake, detects timeouts.
+    // Receives datagrams (at most kMaxDatagramsPerUpdate), advances the handshake, detects timeouts.
+    static constexpr int kMaxDatagramsPerUpdate = 512;
     void update(TimePoint now);
     // Queues a message (copied).
     bool send(Channel ch, const std::vector<uint8_t>& data) { return send(ch, data.data(), data.size()); }

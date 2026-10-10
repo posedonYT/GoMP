@@ -1,0 +1,11 @@
+{
+  "name": "gomp-compat",
+  "private": true,
+  "description": "RAGE.MP API compatibility of GoMP: the API from the RAGE type definitions, what GoMP has, what a mod uses",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3"
+  }
+}

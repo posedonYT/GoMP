@@ -53,7 +53,16 @@ type Metrics struct {
 	violations, corrections                      atomic.Uint64
 	streamIns, hostEvents, hostOpsIn, hostOpsOut atomic.Uint64
 	droppedEvents                                atomic.Uint64
-	phaseNanos, phaseMax                         [numPhases]atomic.Uint64
+	// ticksOver: ticks longer than their budget; ticksMissed: ticks the
+	// ticker dropped because a step overran (the simulation ran slow).
+	ticksOver, ticksMissed atomic.Uint64
+	hostOpsDeferred        atomic.Uint64
+	// hostsDown: script hosts lost (crashed, killed by the watchdog); hostSilence:
+	// the longest a host went without answering a ping (nanoseconds). Both count
+	// from the server start (a login flood happens while players join).
+	hostsDown            atomic.Uint64
+	hostSilence          atomic.Int64
+	phaseNanos, phaseMax [numPhases]atomic.Uint64
 }
 
 // NetStats aggregates transport statistics over all connections.
@@ -64,6 +73,10 @@ type NetStats struct {
 	AvgRTTMs              float64
 	AvgLoss               float64
 	Dropped               uint64
+	WriterStalls          uint64 // the game loop waited for the socket writers
+	FloodDropped          uint64 // datagrams dropped by the per-connection packet limit
+	RelBacklogMax         int    // most reliable messages waiting on one connection
+	RelBacklogSum         int
 }
 
 func newMetrics() *Metrics { return &Metrics{} }
@@ -102,6 +115,11 @@ type Snapshot struct {
 	HostOpsIn    uint64   `json:"hostOpsIn"`
 	HostOpsOut   uint64   `json:"hostOpsOut"`
 	DroppedEvts  uint64   `json:"droppedRemoteEvents"`
+	TicksOver    uint64   `json:"ticksOver"`
+	TicksMissed  uint64   `json:"ticksMissed"`
+	HostOpsLater uint64   `json:"hostOpsDeferred"`
+	HostsDown    uint64   `json:"hostsDown"`
+	HostSilence  float64  `json:"hostSilenceMaxMs"`
 	Net          NetStats `json:"net"`
 	// PhaseAvgMs is the average time per tick spent in each phase since reset.
 	PhaseAvgMs map[string]float64 `json:"phaseAvgMs"`
@@ -137,6 +155,11 @@ func (m *Metrics) Snapshot() Snapshot {
 	snap.HostOpsIn = m.hostOpsIn.Load()
 	snap.HostOpsOut = m.hostOpsOut.Load()
 	snap.DroppedEvts = m.droppedEvents.Load()
+	snap.TicksOver = m.ticksOver.Load()
+	snap.TicksMissed = m.ticksMissed.Load()
+	snap.HostOpsLater = m.hostOpsDeferred.Load()
+	snap.HostsDown = m.hostsDown.Load()
+	snap.HostSilence = ms(time.Duration(m.hostSilence.Load()))
 	snap.PhaseAvgMs = make(map[string]float64, numPhases)
 	snap.PhaseMaxMs = make(map[string]float64, numPhases)
 	for i := range numPhases {
@@ -158,6 +181,8 @@ func (m *Metrics) ResetTickMax() {
 		m.phaseNanos[i].Store(0)
 		m.phaseMax[i].Store(0)
 	}
+	m.ticksOver.Store(0)
+	m.ticksMissed.Store(0)
 	m.mu.Unlock()
 }
 
@@ -180,6 +205,8 @@ func (s *Server) updateStats() {
 		ns.PacketsOut += st.PacketsSent
 		ns.PacketsIn += st.PacketsRecv
 		ns.Resends += st.Resends
+		ns.RelBacklogSum += st.RelBacklog
+		ns.RelBacklogMax = max(ns.RelBacklogMax, st.RelBacklog)
 		ns.AvgRTTMs += float64(st.RTT.Microseconds()) / 1000
 		ns.AvgLoss += st.PacketLoss
 		n++
@@ -199,6 +226,8 @@ func (s *Server) updateStats() {
 		ns.AvgLoss /= float64(n)
 	}
 	ns.Dropped = s.net.DroppedPackets()
+	ns.WriterStalls = s.net.WriterStalls()
+	ns.FloodDropped = s.net.FloodDropped()
 	s.metrics.mu.Lock()
 	s.metrics.netStats = ns
 	s.metrics.vehicles = s.world.Vehicles.Len()

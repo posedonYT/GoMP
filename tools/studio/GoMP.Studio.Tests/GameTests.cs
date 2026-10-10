@@ -1,5 +1,6 @@
 using GoMP.Studio.Game;
 using GoMP.Studio.Maps;
+using Xunit.Abstractions;
 
 namespace GoMP.Studio.Tests;
 
@@ -37,7 +38,13 @@ public sealed class GameTests
 {
     private readonly GameFixture fixture;
 
-    public GameTests(GameFixture fixture) => this.fixture = fixture;
+    private readonly ITestOutputHelper output;
+
+    public GameTests(GameFixture fixture, ITestOutputHelper output)
+    {
+        this.fixture = fixture;
+        this.output = output;
+    }
 
     [GameFact]
     public void Loads_the_game_and_knows_its_props()
@@ -84,8 +91,34 @@ public sealed class GameTests
     {
         var found = fixture.Game.Search("bench 01a", 20);
         Assert.Contains(found, a => a.Name == "prop_bench_01a");
-        Assert.All(found, a => Assert.Contains("bench", a.Name));
+        // The ytyp name is searched too (its models match last), so only the best hits must have the word in the name.
+        Assert.Contains("bench", found[0].Name);
         Assert.StartsWith("prop_", found[0].Name);
         Assert.DoesNotContain(fixture.Game.Search("", 500), a => a.Kind == "interior");
+    }
+
+    [GameFact]
+    public void The_catalog_finds_gates_and_fences_and_knows_its_categories()
+    {
+        var g = fixture.Game;
+        var gates = g.Search("gate", null, 0, 200, false);
+        Assert.True(gates.Total > 300, $"gate: {gates.Total}");
+        Assert.Contains(gates.Items, a => a.Name == "prop_gate_airport_01");
+
+        var fences = g.Search("", "fences", 0, 500, false);
+        Assert.Contains(fences.Items, a => a.Name == "prop_facgate_01");
+        Assert.Contains(fences.Items, a => a.Name == "prop_fncwood_01a");
+
+        var bench = g.Get(Joaat.Hash("prop_bench_01a"));
+        var byHash = g.Search("0x" + bench.Hash.ToString("X8"), null, 0, 10, false);
+        Assert.Equal(new[] { bench }, byHash.Items);
+
+        var index = g.Catalog;
+        output.WriteLine($"named {index.NamedCount}, unnamed {index.UnnamedCount}");
+        for (int i = 0; i < CatalogSearch.Categories.Count; i++)
+            output.WriteLine($"{CatalogSearch.Categories[i].Id}: {index.CategoryCounts[i]}");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var q in new[] { "gate", "wall", "fnc", "bench 01a", "e" }) g.Search(q, null, 0, 200, false);
+        output.WriteLine($"5 searches: {watch.ElapsedMilliseconds} ms");
     }
 }

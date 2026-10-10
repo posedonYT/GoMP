@@ -14,6 +14,8 @@ const inventory = require('./inventory');
 const vehicles = require('./vehicles');
 const houses = require('./houses');
 const maps = require('./maps');
+const orgs = require('./orgs');
+const cars = require('./cars');
 
 const configPath = path.join(__dirname, 'admin.json');
 
@@ -85,8 +87,9 @@ adminCommand('ahelp', '', (player) => {
   reply(player, 'sethp <статик> <hp>, setarmour <статик> <n>, give [статик] <предмет|машина> [кол-во], giveclothes [статик] <top|legs|shoes> <номер> [цвет], items');
   reply(player, 'slay <статик>, respawn <статик>');
   reply(player, 'setdim <статик> <n>, setmoney <статик> <нал> [карта], delveh [all], setfuel [литры], fixveh, announce <текст>');
-  reply(player, 'house add <econom|middle|lux> <цена> [название], house move|del|free|tp <id>, house list');
+  reply(player, 'house add <класс> <цена> [название], house move|del|free|tp <id>, house list, house garage <id> [off] (въезд в гараж здесь), interior spawn|exit (внутри дома), garage spawn|exit|slot <n> (внутри гаража)');
   reply(player, 'maps, maps reload [имя], maps on|off <имя>, mapcursor (камера GoMP Studio сюда)');
+  reply(player, 'invis (невидимость), fly (полёт), tpm (телепорт к метке на карте), makeleader <статик> <lspd|army|ems|gov|none>, setorg <статик> <орг|none> [ранг]');
 }, { needsTarget: false });
 
 adminCommand('players', '', (player) => {
@@ -148,9 +151,13 @@ adminCommand('give', '[статик] <предмет> [количество]', (
   const ch = roleplay.character(target);
   if (!ch || ch.guest) return reply(player, `${target.name} ещё не выбрал персонажа`);
   if (!name) return reply(player, 'Использование: /give [статик] <предмет> [количество]; список: /items');
-  // A vehicle (vaz2107, agera... or veh:<model>) is spawned next to the player and belongs to them.
+  // A vehicle (vaz2107, agera... or veh:<model>) becomes a car of the player (cars.js), next to them.
   if (!inventory.resolveItem(name) && vehicles.isVehicleName(name)) {
-    vehicles.spawnFor(target, name, { putIn: false });
+    const { car, error } = cars.grant(ch, vehicles.modelOf(name));
+    if (error) return reply(player, `${target.name}: ${error}`);
+    const p = target.position;
+    const h = (target.heading * Math.PI) / 180;
+    cars.spawn(target, ch, car, new mp.Vector3(p.x - Math.sin(h) * 4, p.y + Math.cos(h) * 4, p.z + 0.5), target.heading);
     if (target !== player) target.notify(`Вам выдан транспорт: ${vehicles.modelOf(name)}`);
     return reply(player, `${target.name}: транспорт ${vehicles.modelOf(name)}`);
   }
@@ -251,13 +258,14 @@ adminCommand('announce', '<текст>', (player, args, fullText) => {
   return undefined;
 }, { needsTarget: false });
 
-// Houses: added at the admin's position (the door), moved there, removed, taken from the owner.
+// Houses: added at the admin's position and heading (the door), moved there, removed, taken from the owner.
+// The definitions are kept in houses.json (houses.js).
 adminCommand('house', 'add|move|del|free|tp|list ...', (player, [action, ...rest], fullText) => {
   const pos = player.position;
   if (action === 'add') {
     const [cls, price] = rest;
     const name = (fullText || '').split(' ').slice(3).join(' ').trim();
-    const r = houses.addHouse(cls, price, name, { x: pos.x, y: pos.y, z: pos.z });
+    const r = houses.addHouse(cls, price, name, { x: pos.x, y: pos.y, z: pos.z }, player.heading);
     return reply(player, r.error ? `!{#f66}${r.error}` : `Дом #${r.house.id} «${r.house.name}» добавлен (${r.house.cls}, ${r.house.price})`);
   }
   if (action === 'list') {
@@ -266,16 +274,41 @@ adminCommand('house', 'add|move|del|free|tp|list ...', (player, [action, ...rest
     return undefined;
   }
   const h = houses.byId(rest[0]);
-  if (!h) return reply(player, 'Использование: /house add <econom|middle|lux> <цена> [название] | move|del|free|tp <id> | list');
-  if (action === 'move') return reply(player, houses.moveHouse(h.id, { x: pos.x, y: pos.y, z: pos.z }) ? `Дверь дома #${h.id} перенесена сюда` : 'Ошибка');
+  if (!h) return reply(player, 'Использование: /house add <класс> <цена> [название] | move|del|free|tp <id> | list');
+  if (action === 'move') return reply(player, houses.moveHouse(h.id, { x: pos.x, y: pos.y, z: pos.z }, player.heading) ? `Дверь дома #${h.id} перенесена сюда` : 'Ошибка');
   if (action === 'del') return reply(player, houses.removeHouse(h.id) ? `Дом #${h.id} удалён` : 'Ошибка');
   if (action === 'free') return reply(player, houses.evict(h.id) ? `Дом #${h.id} освобождён` : 'Ошибка');
+  if (action === 'garage') {
+    if (rest[1] === 'off') return reply(player, houses.setGaragePoint(h.id, null) ? `Въезд в гараж дома #${h.id} убран` : 'Ошибка');
+    const at = houses.standPoint(player);
+    return reply(player, houses.setGaragePoint(h.id, at, at.heading) ? `Въезд в гараж дома #${h.id}: ${at.x}, ${at.y}, ${at.z}, угол ${at.heading}` : 'Ошибка');
+  }
   if (action === 'tp') {
     player.dimension = 0;
     player.position = new mp.Vector3(h.x, h.y, h.z);
     return undefined;
   }
-  return reply(player, 'Использование: /house add|move|del|free|tp|list');
+  return reply(player, 'Использование: /house add|move|del|free|tp|list|garage');
+}, { needsTarget: false });
+
+// The interior of the house the admin stands in: where players appear, and the exit.
+adminCommand('interior', 'spawn|exit', (player, [action]) => {
+  if (action !== 'spawn' && action !== 'exit') return reply(player, 'Использование: /interior spawn|exit (стоя внутри дома)');
+  const r = houses.setInteriorPoint(player, action);
+  if (r.error) return reply(player, `!{#f66}${r.error}`);
+  const at = r.pos.join(', ');
+  return reply(player, action === 'spawn' ? `Интерьер «${r.id}»: вход — ${at}, угол ${r.heading}` : `Интерьер «${r.id}»: выход — ${at}`);
+}, { needsTarget: false });
+
+// The garage the admin stands in: where players appear, the exit, and the places of the cars.
+adminCommand('garage', 'spawn|exit|slot <n>', (player, [action, n]) => {
+  if (!['spawn', 'exit', 'slot'].includes(action)) return reply(player, 'Использование: /garage spawn|exit|slot <n> (стоя внутри гаража)');
+  const r = houses.setGarageTemplatePoint(player, action, action === 'slot' ? Number(n) : null);
+  if (r.error) return reply(player, `!{#f66}${r.error}`);
+  const at = r.pos.join(', ');
+  if (action === 'spawn') return reply(player, `Гараж «${r.id}»: появление — ${at}, угол ${r.heading}`);
+  if (action === 'exit') return reply(player, `Гараж «${r.id}»: выход — ${at}`);
+  return reply(player, `Гараж «${r.id}»: место ${r.slot} — ${at}, угол ${r.heading}`);
 }, { needsTarget: false });
 
 // Custom maps (maps.js, made in GoMP Studio).
@@ -296,5 +329,88 @@ adminCommand('mapcursor', '', (player) => {
   const c = maps.writeCursor(player);
   return reply(player, `Позиция для GoMP Studio: ${c.x.toFixed(1)} ${c.y.toFixed(1)} ${c.z.toFixed(1)}`);
 }, { needsTarget: false });
+
+
+// ------------------------------------------------------------------ organizations
+
+adminCommand('makeleader', '<статик> <lspd|army|ems|gov|none>', (player, target, [org]) => {
+  const ts = target.getVariable('static');
+  if (ts === null || ts === undefined) return reply(player, `${target.name} ещё не выбрал персонажа`);
+  const id = String(org || '').toLowerCase();
+  if (id === 'none') {
+    const m = orgs.membership(ts);
+    if (!m || !m.leader) return reply(player, `${target.name} не лидер`);
+    orgs.makeLeader(null, m.id);
+    target.notify(`~o~Вы больше не лидер ${m.def.name}`);
+    return reply(player, `${target.name} снят с лидерства ${m.def.name}`);
+  }
+  if (!orgs.defs.has(id)) return reply(player, `Организации: ${[...orgs.defs.keys()].join(', ')}, none`);
+  orgs.makeLeader(ts, id);
+  target.notify(`Вы назначены лидером ~b~${orgs.defs.get(id).name}`);
+  return reply(player, `${target.name} — лидер ${orgs.defs.get(id).name}`);
+});
+
+adminCommand('setorg', '<статик> <lspd|army|ems|gov|none> [ранг]', (player, target, [org, rank]) => {
+  const ts = target.getVariable('static');
+  if (ts === null || ts === undefined) return reply(player, `${target.name} ещё не выбрал персонажа`);
+  const id = String(org || '').toLowerCase();
+  if (id === 'none') {
+    orgs.leave(ts);
+    return reply(player, `${target.name} больше не состоит в организации`);
+  }
+  if (!orgs.defs.has(id)) return reply(player, `Организации: ${[...orgs.defs.keys()].join(', ')}, none`);
+  const top = orgs.topRank(id);
+  const r = Math.max(1, Math.min(top - 1, Math.floor(Number(rank)) || 1));
+  orgs.join(ts, id, r);
+  target.notify(`Вы приняты в ~b~${orgs.defs.get(id).name}~s~ (ранг ${r})`);
+  return reply(player, `${target.name}: ${orgs.defs.get(id).name}, ранг ${r}`);
+});
+
+// ------------------------------------------------------------------ admin tools
+
+// Invisible: others do not see the admin, his name or his blip; he sees himself faded.
+adminCommand('invis', '', (player) => {
+  const on = !player.getVariable('invisible');
+  player.alpha = on ? 0 : 255;
+  player.setVariable('invisible', on);
+  return reply(player, on ? 'Вы невидимы' : 'Вы снова видимы');
+}, { needsTarget: false });
+
+// Flight through walls (the client moves the ped: W/S/A/D, Space up, Ctrl down, Shift faster);
+// the movement checks of the core are off meanwhile.
+adminCommand('fly', '', (player) => {
+  const on = !player.getVariable('fly');
+  player.setVariable('fly', on);
+  player.anticheat = !on;
+  return reply(player, on ? 'Полёт включён: W/S/A/D, пробел — вверх, Ctrl — вниз, Shift — быстрее. /fly — выключить' : 'Полёт выключен');
+}, { needsTarget: false });
+
+// Teleport to the waypoint of the map: the client asks to be moved high above it, then,
+// once the ground there has streamed in, onto it (several moves within the time allowed).
+const TPM_WINDOW_MS = 20000;
+const tpmAsked = new Map();  // player.id -> time /tpm was typed
+
+adminCommand('tpm', '', (player) => {
+  tpmAsked.set(player.id, Date.now());
+  player.call('gomp:admin:tpm', []);
+}, { needsTarget: false });
+
+mp.events.add('gomp:admin:tpm:go', (player, x, y, z) => {
+  const asked = tpmAsked.get(player.id);
+  if (!isAdmin(player) || !asked || Date.now() - asked > TPM_WINDOW_MS) return;
+  const p = [Number(x), Number(y), Number(z)];
+  if (!p.every(Number.isFinite) || Math.abs(p[0]) > 10000 || Math.abs(p[1]) > 10000 || p[2] < -200 || p[2] > 2000) return;
+  const to = new mp.Vector3(p[0], p[1], p[2]);
+  player.dimension = 0;
+  if (player.vehicle && player.seat === 0) player.vehicle.position = to;
+  else player.position = to;
+  reply(player, `Телепорт к метке: ${p.map((v) => v.toFixed(1)).join(' ')}`);
+});
+
+mp.events.add('gomp:admin:tpm:none', (player) => {
+  if (tpmAsked.delete(player.id)) reply(player, 'Поставьте метку на карте (Esc → Карта → ПКМ)');
+});
+
+mp.events.add('playerQuit', (player) => tpmAsked.delete(player.id));
 
 module.exports = { isAdmin };

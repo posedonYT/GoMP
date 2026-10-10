@@ -13,7 +13,7 @@ build:
 	$(GO) build -o $(BIN)/gomp-bot ./tools/bot/cmd/gomp-bot
 	$(GO) build -o $(BIN)/gomp-stress ./tools/stress
 
-test: test-go test-node test-gamemode test-cpp
+test: test-go test-node test-gamemode test-compat test-cpp
 
 test-go:
 	$(GO) vet -composites=false ./...
@@ -25,6 +25,11 @@ test-node:
 # The freeroam gamemode (accounts, inventory, vehicles, shops, tuning) against a fake mp.
 test-gamemode:
 	cd server-files/packages/freeroam && $(NODE) --test "test/*.test.js"
+	$(NODE) --test tools/dealership/generate.test.js
+
+# RAGE.MP API compatibility (tools/compat: npm install there first).
+test-compat:
+	cd tools/compat && $(NODE) --test test/compat.test.js
 
 # The data patches of the add-on installer (needs the .NET SDK).
 test-addons:

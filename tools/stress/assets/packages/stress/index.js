@@ -30,9 +30,35 @@ function spawnPos(player) {
   }
 }
 
+// GOMP_STRESS_AUTH=1: every player logs in first, with the password hashing of the
+// roleplay gamemode (scrypt off the event loop); =sync hashes on the event loop, as
+// the gamemode did before, to compare: a join flood then blocks Node for seconds.
+const crypto = require('crypto');
+const auth = process.env.GOMP_STRESS_AUTH || '';
+let logins = 0;
+
+function login(player, done) {
+  const salt = crypto.randomBytes(16);
+  const password = `pw-${player.id}-${Math.random()}`;
+  if (auth === 'sync') {
+    crypto.scryptSync(password, salt, 32);
+    done();
+    return;
+  }
+  crypto.scrypt(password, salt, 32, () => done());
+}
+
 mp.events.add('playerReady', (player) => {
-  player.spawn(spawnPos(player), 0);
-  player.giveWeapon(mp.joaat('weapon_pistol'), 9999);
+  const spawn = () => {
+    if (!mp.players.exists(player)) return;
+    player.spawn(spawnPos(player), 0);
+    player.giveWeapon(mp.joaat('weapon_pistol'), 9999);
+  };
+  if (!auth) return spawn();
+  login(player, () => {
+    logins++;
+    spawn();
+  });
 });
 
 mp.events.add('playerDeath', (player) => {
@@ -60,4 +86,4 @@ mp.events.add('playerChat', () => {
   chats++;
 });
 
-mp.events.addProc('stress:stats', () => ({ players: mp.players.length, vehicles: mp.vehicles.length, chats }));
+mp.events.addProc('stress:stats', () => ({ players: mp.players.length, vehicles: mp.vehicles.length, chats, logins }));

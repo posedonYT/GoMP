@@ -93,7 +93,9 @@ void Client::restartHandshake() {
 void Client::update(TimePoint now) {
     if (state_ != State::Connecting && state_ != State::Connected) return;
     uint8_t buf[2048];
-    for (int i = 0; i < 4096; ++i) {
+    // At most kMaxDatagramsPerUpdate per call (one game frame): a burst (a crowd streaming
+    // in) is spread over frames instead of stalling one; the socket buffer holds the rest.
+    for (int i = 0; i < kMaxDatagramsPerUpdate; ++i) {
         int n = sock_.recv(buf, sizeof(buf));
         if (n <= 0) break;
         handlePacket(buf, static_cast<std::size_t>(n), now);

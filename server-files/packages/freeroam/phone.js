@@ -36,18 +36,16 @@ function clean(text, max) {
 
 function numberOf(ch) {
   if (ch.phone) return ch.phone;
-  const taken = new Set(accounts.allCharacters().map((c) => c.phone).filter(Boolean));
   let n;
   do {
     n = `${200 + Math.floor(Math.random() * 800)}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
-  } while (taken.has(n));
-  ch.phone = n;
-  accounts.save();
+  } while (accounts.characterByPhone(n));
+  accounts.setPhone(ch, n);
   return n;
 }
 
 function byNumber(number) {
-  return accounts.allCharacters().find((c) => c.phone === number) || null;
+  return accounts.characterByPhone(number);
 }
 
 // The player who is in the game with this character.
@@ -134,7 +132,8 @@ mp.events.add('gomp:phone:sms', withPhone((player, ch, number, text) => {
   if (to === ch) return player.notify('~r~Нельзя написать самому себе');
   addSms(ch, { n, t, o: true, at: now, r: true });
   addSms(to, { n: from, t, o: false, at: now, r: false });
-  accounts.save();
+  accounts.save(ch);
+  accounts.save(to);  // may be offline: named, a broad save covers only characters in play
   push(player, ch);
   const target = playerOf(to);
   if (target) {
@@ -163,7 +162,8 @@ mp.events.add('gomp:phone:transfer', withPhone((player, ch, number, amount) => {
     to.bank += sum;
     roleplay.logBank(to, sum, what);
   }
-  accounts.save();
+  accounts.save(ch);
+  accounts.save(to);  // may be offline
   player.notify(`Перевод ~g~$${sum}~s~ отправлен: ${contactName(ch, n)}`);
   return push(player, ch);
 }));

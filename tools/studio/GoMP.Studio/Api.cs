@@ -11,7 +11,8 @@
 //   GET    /api/catalog/{model}             one model, by name or hash
 //   GET    /api/models/{model}.glb?lod=&tex= the model as glTF (Z up; lod high, med, low, vlow; tex: texture size)
 //   GET    /api/world/cell?x=&y=            entities of the world in a cell of 256 m (indices: floor(coord / 256))
-//   GET    /api/events                      server-sent events: gta, cursor, maps
+//   GET    /api/houses, PUT /api/houses     the houses of the server (see HousesApi.cs); /api/interiors/geometry
+//   GET    /api/events                      server-sent events: gta, cursor, maps, houses
 using GoMP.Studio.Game;
 using GoMP.Studio.Maps;
 
@@ -83,10 +84,24 @@ public static class Api
 
         api.MapGet("/cursor", (MapStore s) => s.ReadCursor() is { } c ? Results.Json(c) : Results.NoContent());
 
-        api.MapGet("/catalog", (string q, int? limit, bool? interiors, GameData g) =>
-            g.State != GameState.Ready
-                ? Results.Json(new { error = g.Status, state = g.State.ToString().ToLowerInvariant() }, statusCode: 503)
-                : Results.Json(g.Search(q, limit ?? 60, interiors ?? false)));
+        // Paged: q (words or a hash), cat (a category id), offset, limit (default 200, at most 500).
+        api.MapGet("/catalog", (string q, string cat, int? offset, int? limit, bool? interiors, GameData g) =>
+        {
+            if (g.State != GameState.Ready)
+                return Results.Json(new { error = g.Status, state = g.State.ToString().ToLowerInvariant() }, statusCode: 503);
+            int from = Math.Max(offset ?? 0, 0);
+            var page = g.Search(q, cat, from, limit ?? 200, interiors ?? false);
+            return Results.Json(new { total = page.Total, offset = from, items = page.Items });
+        });
+
+        // A literal route wins over /catalog/{model}.
+        api.MapGet("/catalog/categories", (GameData g) =>
+        {
+            if (g.State != GameState.Ready)
+                return Results.Json(new { error = g.Status, state = g.State.ToString().ToLowerInvariant() }, statusCode: 503);
+            var counts = g.Catalog.CategoryCounts;
+            return Results.Json(CatalogSearch.Categories.Select((c, i) => new { id = c.Id, label = c.Label, count = counts[i] }));
+        });
 
         api.MapGet("/catalog/{model}", (string model, GameData g) =>
         {
@@ -95,7 +110,9 @@ public static class Api
             return g.Get(hash) is { } a ? Results.Json(a) : Results.NotFound(new { error = $"модели {model} нет в игре" });
         });
 
-        api.MapGet("/models/{file}", (string file, string lod, int? tex, GameData g, GoMP.Studio.Export.ModelCache cache) =>
+        // low: streaming of the world (true/1) — served after the user's requests. A string:
+        // a value the binder cannot read must not turn into 400 for every world model.
+        api.MapGet("/models/{file}", (string file, string lod, int? tex, string low, GameData g, GoMP.Studio.Export.ModelCache cache) =>
         {
             if (!file.EndsWith(".glb")) return Results.NotFound();
             if (g.State != GameState.Ready) return Results.Json(new { error = g.Status }, statusCode: 503);
@@ -103,16 +120,20 @@ public static class Api
             uint hash = uint.TryParse(model, out uint h) ? h : Joaat.Hash(model);
             var level = Enum.TryParse<GoMP.Studio.Export.Lod>(lod ?? "high", true, out var l) ? l : GoMP.Studio.Export.Lod.High;
             int size = Math.Clamp(tex ?? GoMP.Studio.Export.ModelExporter.MaxTextureSize, 16, 2048);
-            var data = cache.Get(hash, level, () => g.Exporter.Export(hash, level, size), size);
+            var data = cache.Get(hash, level, () => g.Exporter.Export(hash, level, size, null, low == "1" || (bool.TryParse(low, out bool streaming) && streaming)), size);
             return data == null ? Results.NotFound(new { error = $"у модели {model} нет геометрии" }) : Results.File(data, "model/gltf-binary");
         });
 
-        api.MapGet("/world/cell", (int x, int y, GameData g) =>
-            g.State != GameState.Ready
-                ? Results.Json(new { error = g.Status }, statusCode: 503)
-                : Results.Json(g.World.Entities(x, y)));
+        api.MapGet("/world/cell", (int x, int y, GameData g, GoMP.Studio.Export.ModelWarmer warmer) =>
+        {
+            if (g.State != GameState.Ready) return Results.Json(new { error = g.Status }, statusCode: 503);
+            var entities = g.World.Entities(x, y);
+            warmer.Enqueue(entities.Select(e => e.a).Distinct());  // ahead of the browser
+            return Results.Json(entities);
+        });
 
         VehiclesApi.Map(api);
+        HousesApi.Map(api);
 
         api.MapGet("/events", (HttpContext ctx, EventHub hub) => hub.Stream(ctx));
     }

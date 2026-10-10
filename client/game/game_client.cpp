@@ -56,7 +56,9 @@ void GameClient::connect() {
 void GameClient::tick() {
     auto now = Clock::now();
     const auto frameStart = now;
+    perf_.mark = now;
     suppressPopulation();
+    perf_.lap(Perf::Population);
     // Console lines typed on the keyboard thread.
     EnterCriticalSection(&chatLock_);
     auto consoleLines = std::move(pendingConsole_);
@@ -77,7 +79,25 @@ void GameClient::tick() {
             closeScreens();
             clearHouseBlips();
             houses_.clear();
+            clearHouseProps();
+            housePropsWanted_.clear();
             insideHouse_ = -1;
+            insideGarage_ = -1;
+            spawnOptions_.clear();
+            pendingAnims_.clear();
+            dealerLoaded_ = false;
+            dealerCars_.clear();
+            orgBases_.clear();
+            propertyView_ = {};
+            orgView_ = {};
+            storage_.clear();
+            tpmPending_ = false;
+            blipRound_ = false;
+            houseFade_ = 0;
+            houseFadeVehicle_ = 0;
+            houseFadeHasHeading_ = false;
+            houseFadeRequest_ = ScriptEvent{};
+            CAMERA::DO_SCREEN_FADE_IN(0);
             selfShared_.clear();
             selfProps_.clear();
             players_.clear();
@@ -85,6 +105,8 @@ void GameClient::tick() {
             world_.clear();
             myId_ = gomp::kNoID;
             readySent_ = spawned_ = false;
+            packages_.reset();
+            packagesReady_ = false;
             net_ = std::make_unique<Client>();
         }
         connect();
@@ -96,7 +118,8 @@ void GameClient::tick() {
             status_.clear();
         }
         pump();
-        if (myId_ != gomp::kNoID && !readySent_) {
+        perf_.lap(Perf::Net);
+        if (myId_ != gomp::kNoID && !readySent_ && tickPackages()) {
             send(Ready{});
             readySent_ = true;
         }
@@ -127,8 +150,13 @@ void GameClient::tick() {
             }
         }
         updateRemotes();
+        if (!pendingAnims_.empty()) tickAnims();
+        perf_.lap(Perf::Remotes);
+        tickHouseFade();  // also on the lobby screens (the spawn place fade)
         drawWorld();
+        perf_.lap(Perf::World);
         drawHud();
+        perf_.lap(Perf::Hud);
         net_->flush(now);
     } else if (net_->state() == Client::State::Rejected) {
         status_ = "rejected: " + net_->reason();
@@ -137,7 +165,43 @@ void GameClient::tick() {
     tickScreens();
     drawUi();
     drawConsole();
+    perf_.lap(Perf::Ui);
     samplePerf(frameStart);
+}
+
+// The cache of one server's client_packages: <game>/gomp/cache/<host>_<port>/client_packages.
+std::filesystem::path GameClient::packagesDir() const {
+    char path[MAX_PATH] = {};
+    GetModuleFileNameA(shv::module, path, MAX_PATH);
+    std::filesystem::path dir = std::filesystem::path(path).parent_path() / "gomp" / "cache";
+    std::string server = cfg_.host + "_" + std::to_string(cfg_.port);
+    for (char& c : server)
+        if (c == ':' || c == '/' || c == '\\') c = '_';
+    return dir / server / "client_packages";
+}
+
+// Downloads the server's client_packages before the client says Ready (like RAGE.MP):
+// the status line shows the progress. A server without them (or without fastdl) is
+// not waited for.
+bool GameClient::tickPackages() {
+    if (packagesReady_) return true;
+    if (!packages_) {
+        packages_ = std::make_unique<gomp::fastdl::Downloader>();
+        packages_->start(cfg_.host, static_cast<uint16_t>(cfg_.port + 1), packagesDir());
+        log("client packages: " + packagesDir().string());
+    }
+    const auto p = packages_->progress();
+    using State = gomp::fastdl::Downloader::State;
+    if (p.state == State::Running) {
+        const int pct = p.bytesTotal > 0 ? static_cast<int>(p.bytesDone * 100 / p.bytesTotal) : 0;
+        status_ = "загрузка ресурсов сервера " + std::to_string(pct) + "% (" + std::to_string(p.filesDone) + "/" + std::to_string(p.filesTotal) + ")";
+        return false;
+    }
+    if (p.state == State::Failed) log("client packages not downloaded: " + p.error);
+    else log("client packages: " + std::to_string(packages_->files().size()) + " files, " + std::to_string(p.filesTotal) + " downloaded");
+    if (status_.rfind("загрузка ресурсов", 0) == 0) status_.clear();
+    packagesReady_ = true;
+    return true;
 }
 
 void GameClient::pump() {
@@ -471,13 +535,36 @@ void GameClient::onProps(EntityType t, uint16_t id, const Props& p) {
     auto it = world_.find({static_cast<uint8_t>(t), id});
     if (it == world_.end()) return;
     WorldEntity& e = it->second;
+    std::vector<uint8_t> changed;
+    changed.reserve(p.size());
     for (auto& [k, v] : p) {
         if (v.isNil()) e.props.erase(k);
         else e.props[k] = v;
         if (k == prop::Position && v.kind == Value::Kind::Vec3) e.pos = v.v;
         if (k == prop::Rotation && v.kind == Value::Kind::Vec3) e.rot = v.v;
+        changed.push_back(k);
     }
-    // Simplest correct update for handles: recreate with the new state.
+    // A moved, turned or faded object (doors, lifts, scripted props) is changed in
+    // place: recreating it for every step of an animation cost a model request and
+    // a new object per update. Anything else is recreated with the new state.
+    if (e.type == EntityType::Object && e.handle && ENTITY::DOES_ENTITY_EXIST(e.handle) && budget::appliesInPlace(changed)) {
+        for (uint8_t k : changed) {
+            switch (k) {
+                case prop::Position:
+                    ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e.handle, e.pos.x, e.pos.y, e.pos.z, false, false, false);
+                    e.placed = false;  // a dropped item is laid on the ground again
+                    break;
+                case prop::Rotation: ENTITY::SET_ENTITY_ROTATION(e.handle, e.rot.x, e.rot.y, e.rot.z, 2, true); break;
+                case prop::Alpha:
+                    if (int a = props::integer(e.props, prop::Alpha, 255); a < 255) ENTITY::SET_ENTITY_ALPHA(e.handle, a, false);
+                    else ENTITY::RESET_ENTITY_ALPHA(e.handle);
+                    break;
+                case prop::Visible: ENTITY::SET_ENTITY_VISIBLE(e.handle, props::flag(e.props, prop::Visible, true), false); break;
+                default: break;
+            }
+        }
+        return;
+    }
     despawnWorldEntity(e);
     spawnWorldEntity(e);
 }
@@ -553,7 +640,7 @@ void GameClient::onSetPosition(const SetPosition& sp) {
         lastLocalHealth_ = 200;
         if (!spawned_) {
             spawned_ = true;
-            CAMERA::DO_SCREEN_FADE_IN(500);
+            if (houseFade_ == 0) CAMERA::DO_SCREEN_FADE_IN(500);  // a fade for the house spawn fades in itself
         }
         if (!PED::IS_PED_IN_ANY_VEHICLE(me, false)) TASK::CLEAR_PED_TASKS_IMMEDIATELY(me);  // drop story-scene tasks
         restorePlayerState();
@@ -634,7 +721,9 @@ void GameClient::onShot(const WeaponShotOut& s) {
 }
 
 void GameClient::onScriptEvent(const ScriptEvent& e) {
-    if (handleUiEvent(e) || handleVehicleEvent(e) || handlePlacesEvent(e) || handleHousesEvent(e) || handlePhoneEvent(e)) return;
+    if (handleUiEvent(e) || handleVehicleEvent(e) || handlePlacesEvent(e) || handleHousesEvent(e) || handlePhoneEvent(e) || handleDealerEvent(e) ||
+        handleOrgEvent(e) || handleAdminEvent(e))
+        return;
     if (e.name == "__gomp:blipRoute" && !e.args.empty() && e.args[0].kind == Value::Kind::Entity) {
         auto it = world_.find({static_cast<uint8_t>(EntityType::Blip), e.args[0].e.id});
         bool on = e.args.size() > 1 && e.args[1].b;
@@ -697,6 +786,8 @@ void GameClient::onAnim(const PlayAnim& a) {
     if (a.playerId == myId_) ped = PLAYER::PLAYER_PED_ID();
     else if (auto it = players_.find(a.playerId); it != players_.end()) ped = it->second.ped;
     if (!ped) return;
+    // A newer animation (or a stop) replaces one still waiting for its dictionary.
+    std::erase_if(pendingAnims_, [&](const PendingAnim& p) { return p.anim.playerId == a.playerId; });
     if (a.stop) {
         TASK::CLEAR_PED_TASKS(ped);
         return;
@@ -705,9 +796,26 @@ void GameClient::onAnim(const PlayAnim& a) {
         TASK::TASK_START_SCENARIO_IN_PLACE(ped, a.name.c_str(), 0, true);
         return;
     }
+    // Played in the frame its dictionary is loaded: waiting here stopped the whole
+    // client (network, HUD, other players) for up to 100 frames.
     STREAMING::REQUEST_ANIM_DICT(a.dict.c_str());
-    for (int i = 0; i < 100 && !STREAMING::HAS_ANIM_DICT_LOADED(a.dict.c_str()); ++i) shv::wait(0);
-    TASK::TASK_PLAY_ANIM(ped, a.dict.c_str(), a.name.c_str(), a.speed, -a.speed, -1, a.flag, 0, false, false, false);
+    pendingAnims_.push_back({a, Clock::now()});
+    tickAnims();
+}
+
+void GameClient::tickAnims() {
+    constexpr auto kAnimLoadTimeout = std::chrono::seconds(5);
+    const auto now = Clock::now();
+    std::erase_if(pendingAnims_, [&](const PendingAnim& p) {
+        const PlayAnim& a = p.anim;
+        Ped ped = 0;
+        if (a.playerId == myId_) ped = PLAYER::PLAYER_PED_ID();
+        else if (auto it = players_.find(a.playerId); it != players_.end()) ped = it->second.ped;
+        if (!ped || now - p.since > kAnimLoadTimeout) return true;
+        if (!STREAMING::HAS_ANIM_DICT_LOADED(a.dict.c_str())) return false;
+        TASK::TASK_PLAY_ANIM(ped, a.dict.c_str(), a.name.c_str(), a.speed, -a.speed, -1, a.flag, 0, false, false, false);
+        return true;
+    });
 }
 
 }  // namespace gompgame

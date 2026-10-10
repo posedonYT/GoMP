@@ -1,0 +1,127 @@
+{
+  "started": "2026-10-10T15:41:49.328393+03:00",
+  "options": {
+    "auth": false,
+    "bots": 1000,
+    "duration": "20s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "amd64",
+    "cpus": 12,
+    "go": "go1.27.1",
+    "os": "windows"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.1069977451973387,
+    "deaths": 130,
+    "gcPauseP99Ms": 0.00006400000000000001,
+    "goroutines": 23,
+    "heapMB": 399.2068176269531,
+    "hitsPerSec": 43.73263002375105,
+    "hostCommandsPerSec": 60.10127084037686,
+    "hostEventsPerSec": 37.96131593643009,
+    "hostOpsDeferred": 0,
+    "hostOpsOutPerSec": 7474.349270157133,
+    "hostSilenceMaxMs": 3961.237,
+    "hostsDown": 0,
+    "kbInPerPlayerSec": 0.8762614495066536,
+    "kbOutPerPlayerSec": 28.770007138729945,
+    "players": 1000,
+    "relBacklogMax": 5,
+    "rssMB": 413.65234375,
+    "shotsPerSec": 71.89266255326537,
+    "syncDeferredPerSec": 207.1205219441133,
+    "syncInPerSec": 19927.15347853568,
+    "syncOutPerSec": 798389.85909267,
+    "tickMaxMs": 17.53,
+    "tickP50Ms": 2.095,
+    "tickP99Ms": 10.389,
+    "ticksMissed": 0,
+    "ticksOver": 0,
+    "vehicles": 0,
+    "violations": 0,
+    "writerStalls": 0
+  },
+  "tickPhasesMs": {
+    "controllers avg": 0.21553996683250415,
+    "controllers max": 9.8488,
+    "flush avg": 0.5286257048092868,
+    "flush max": 2.0008,
+    "hosts avg": 0.12079353233830846,
+    "hosts max": 4.6638,
+    "inbound avg": 0.3332409618573798,
+    "inbound max": 2.6716,
+    "scripts avg": 0.10041310116086236,
+    "scripts max": 1.0804,
+    "shapes avg": 0.0008611940298507462,
+    "shapes max": 0.5193,
+    "streaming avg": 0.9087180762852405,
+    "streaming max": 8.5433,
+    "sync avg": 0.5977474295190713,
+    "sync max": 2.2762
+  },
+  "syncLatencyMs": {
+    "ped_max": 36646.773,
+    "ped_p50": 67.1,
+    "ped_p95": 67.9,
+    "ped_p99": 68.6,
+    "samples": 2006841,
+    "veh_p50": 0,
+    "veh_p99": 0
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 22.799166000000024,
+    "resends": 1,
+    "syncMsgsPerBotPerSec": 867.5021413316609
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 10.389,
+      "limit": 10,
+      "passed": false
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 17.53,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "script host silence max ms",
+      "value": 3961.237,
+      "limit": 2500,
+      "passed": false
+    },
+    {
+      "name": "script hosts lost",
+      "value": 0,
+      "limit": 0,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 68.6,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": false
+}

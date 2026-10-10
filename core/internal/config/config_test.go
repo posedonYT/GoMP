@@ -105,3 +105,31 @@ func TestLoadFile(t *testing.T) {
 		t.Fatalf("%v %d", err, c.MaxPlayers)
 	}
 }
+
+// RAGE.MP's own settings GoMP has no use for are kept quietly; csharp switches the .NET host.
+func TestRageServerKeysAndCSharp(t *testing.T) {
+	c, err := Parse([]byte(`{"csharp": "enabled", "fqdn": "rp.example", "resource-scan-thread-limit": 0, "node-commandline-flags": "--inspect",
+		"allow-cef-debugging": false, "gomp": {"dotnet-path": "C:/dotnet/dotnet.exe", "dotnet-host": "host/GoMP.Host.dll"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range c.Warnings {
+		if strings.Contains(w, "fqdn") || strings.Contains(w, "resource-scan") || strings.Contains(w, "node-commandline") || strings.Contains(w, "csharp") {
+			t.Errorf("unexpected warning %q", w)
+		}
+	}
+	if c.Raw["fqdn"] != "rp.example" {
+		t.Fatal("the value stays in mp.config")
+	}
+	if !Enabled(c.CSharp) || c.GoMP.DotnetPath != "C:/dotnet/dotnet.exe" || c.GoMP.DotnetHost != "host/GoMP.Host.dll" {
+		t.Fatalf("csharp %q, dotnet %q %q", c.CSharp, c.GoMP.DotnetPath, c.GoMP.DotnetHost)
+	}
+	for v, want := range map[string]bool{"enabled": true, "true": true, " Enabled ": true, "disabled": false, "": false, "false": false} {
+		if Enabled(v) != want {
+			t.Errorf("Enabled(%q) = %v", v, !want)
+		}
+	}
+	if Default().GoMP.DotnetPath != "dotnet" {
+		t.Fatal("dotnet from PATH by default")
+	}
+}

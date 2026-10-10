@@ -452,8 +452,13 @@ void GameClient::drawHud() {
     if (lobbyScreen() || !spawned_ || HUD::IS_PAUSE_MENU_ACTIVE()) return;
     tickVehicles();
     tickPhone();
+    tickAdmin();
     const bool interact = interactRequested_.exchange(false);
-    tickPlaces(interact, tickHouses(interact));
+    // One "E" hint at a time: houses first, then the dealership, the storage, the places.
+    bool hint = tickHouses(interact);
+    hint = tickDealer(interact, hint) || hint;
+    hint = tickOrgBases(interact, hint) || hint;
+    tickPlaces(interact, hint);
     if (screen_ == Screen::None) drawCrosshair(false, 0.5f, 0.5f);
     if (!settings_.hud) return;
     const Value* cash = props::shared(selfShared_, "cash");
@@ -613,7 +618,7 @@ void GameClient::drawMenu() {
     roundRect(x + 0.004f, y + 0.006f, side, h - 0.012f, theme::Surface, 8);
     label("GoMP", x + 0.016f, y + 0.016f, 0.62f, theme::Accent);
     label("Меню игрока", x + 0.016f, y + 0.062f, 0.3f, theme::Muted);
-    const char* tabs[] = {"Персонаж", "Анимации", "Прицел", "Настройки"};
+    const char* tabs[] = {"Персонаж", "Недвижимость", "Организация", "Анимации", "Прицел", "Настройки"};
     const int tabCount = static_cast<int>(std::size(tabs));
     for (int i = 0; i < tabCount; ++i) {
         const float ty = y + 0.105f + i * 0.048f, tw = side - 0.016f, tx = x + 0.012f;
@@ -686,6 +691,10 @@ void GameClient::drawMenu() {
             cy += 0.04f;
         }
     } else if (menuTab_ == 1) {
+        drawPropertyTab(cx, cy, cw, y + h - 0.02f);
+    } else if (menuTab_ == 2) {
+        drawOrgTab(cx, cy, cw, y + h - 0.02f);
+    } else if (menuTab_ == 3) {
         const int n = static_cast<int>(std::size(kAnimations));
         const float bw = (cw - 0.008f) / 2, bh = 0.038f;
         for (int i = 0; i < n; ++i) {
@@ -694,7 +703,7 @@ void GameClient::drawMenu() {
         }
         cy += ((n + 1) / 2) * (bh + 0.007f) + 0.008f;
         if (uiButton(cx, cy, cw, 0.042f, "Остановить анимацию", true)) send(ScriptEvent{"gomp:anim", {Value::integer(-1)}});
-    } else if (menuTab_ == 2) {
+    } else if (menuTab_ == 4) {
         // Crosshair: settings on the left, a live preview on the right.
         Settings& s = settings_;
         const float lw = cw * 0.6f;

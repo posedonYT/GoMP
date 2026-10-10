@@ -12,7 +12,9 @@
 // launch of GTA V ignores it. The copy of update.rpf is rebuilt when the game
 // updates its own update.rpf or the set of packs changes.
 //
-//   gomp-addons install --game E:\GTAV --packs client-dist\addons
+//   gomp-addons install --game E:\GTAV --packs client-dist\addons[;<more folders>]
+//       (several folders: the local packs and those a server gave; a pack of the
+//        same name in a later folder wins)
 //   gomp-addons list    --game E:\GTAV <archive.rpf> [name filter]
 //   gomp-addons extract --game E:\GTAV <archive.rpf> <entry path> <output file>
 //   gomp-addons replace --game E:\GTAV <archive.rpf> <entry path> <new file>
@@ -49,7 +51,7 @@ internal static class Program
                 case "replace":
                     return Replace(game, rest);
                 case "selftest":
-                    return Patches.SelfTest() | PackSelfTest();
+                    return Patches.SelfTest() | PackSelfTest() | ListSelfTest();
                 case "pack":
                     return Pack(rest);
                 default:
@@ -81,12 +83,23 @@ internal static class Program
 
     // ------------------------------------------------------------------ install
 
+    // The packs of several folders (separated by ';'): name -> its dlc.rpf; a later folder wins.
+    public static SortedDictionary<string, string> ListPacks(string packsDirs)
+    {
+        var found = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var dir in packsDirs.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Directory.Exists(dir)) continue;
+            foreach (var d in Directory.GetDirectories(dir))
+                if (File.Exists(Path.Combine(d, "dlc.rpf"))) found[Path.GetFileName(d).ToLowerInvariant()] = Path.Combine(d, "dlc.rpf");
+        }
+        return found;
+    }
+
     private static int Install(string game, string packsDir)
     {
-        var packs = Directory.Exists(packsDir)
-            ? Directory.GetDirectories(packsDir).Where(d => File.Exists(Path.Combine(d, "dlc.rpf")))
-                .Select(d => Path.GetFileName(d).ToLowerInvariant()).OrderBy(n => n).ToArray()
-            : Array.Empty<string>();
+        var sources = ListPacks(packsDir);
+        var packs = sources.Keys.ToArray();
         if (packs.Length == 0)
         {
             Console.WriteLine("no add-on packs in " + packsDir);
@@ -98,7 +111,7 @@ internal static class Program
         string dlcpacks = Path.Combine(game, "mods", "update", "x64", "dlcpacks");
         foreach (string pack in packs)
         {
-            string src = Path.Combine(packsDir, pack, "dlc.rpf");
+            string src = sources[pack];
             string dst = Path.Combine(dlcpacks, pack, "dlc.rpf");
             Directory.CreateDirectory(Path.GetDirectoryName(dst));
             // File.Copy keeps the write time: a replaced pack differs in it.
@@ -200,6 +213,32 @@ internal static class Program
     }
 
     // Packs a small tree into a temporary archive and reads it back.
+    private static int ListSelfTest()
+    {
+        string tmp = Path.Combine(Path.GetTempPath(), "gomp-addons-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            void Pack(string dir, string name, string text)
+            {
+                Directory.CreateDirectory(Path.Combine(tmp, dir, name));
+                File.WriteAllText(Path.Combine(tmp, dir, name, "dlc.rpf"), text);
+            }
+            Pack("local", "m5", "local m5");
+            Pack("local", "jesko", "local jesko");
+            Pack("server", "M5", "server m5");
+            Pack("server", "lspd", "server lspd");
+            Directory.CreateDirectory(Path.Combine(tmp, "server", "empty"));
+            var packs = ListPacks($"{Path.Combine(tmp, "local")};{Path.Combine(tmp, "server")};{Path.Combine(tmp, "missing")}");
+            bool ok = string.Join(",", packs.Keys) == "jesko,lspd,m5" && File.ReadAllText(packs["m5"]) == "server m5";
+            Console.WriteLine(ok ? "list: ok" : "list: FAILED " + string.Join(",", packs));
+            return ok ? 0 : 1;
+        }
+        finally
+        {
+            Directory.Delete(tmp, true);
+        }
+    }
+
     private static int PackSelfTest()
     {
         string tmp = Path.Combine(Path.GetTempPath(), "gomp-addons-" + Guid.NewGuid().ToString("N"));

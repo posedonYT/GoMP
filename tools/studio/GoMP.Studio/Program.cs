@@ -31,7 +31,21 @@ builder.Services.AddSingleton<EventHub>();
 builder.Services.AddSingleton(sp => new GameData(sp.GetRequiredService<StudioOptions>().GtaDir));
 builder.Services.AddSingleton(sp => new MapStore(sp.GetRequiredService<StudioOptions>().MapsDir));
 builder.Services.AddSingleton<MapWatcher>();
+builder.Services.AddSingleton(sp => new GoMP.Studio.Houses.HousesStore(sp.GetRequiredService<StudioOptions>().ServerFiles));
+builder.Services.AddSingleton<HousesWatcher>();
 builder.Services.AddSingleton(sp => new GoMP.Studio.Export.ModelCache(sp.GetRequiredService<StudioOptions>().CacheDir));
+// The models of a cell the browser asked for are exported ahead, in the streaming lane.
+builder.Services.AddSingleton(sp =>
+{
+    var cache = sp.GetRequiredService<GoMP.Studio.Export.ModelCache>();
+    var game = sp.GetRequiredService<GameData>();
+    const int tex = GoMP.Studio.Export.ModelCache.WorldTexture;
+    return new GoMP.Studio.Export.ModelWarmer(hash =>
+    {
+        if (game.State != GameState.Ready || cache.Has(hash, GoMP.Studio.Export.Lod.High, tex)) return;
+        cache.Get(hash, GoMP.Studio.Export.Lod.High, () => game.Exporter.Export(hash, GoMP.Studio.Export.Lod.High, tex, null, low: true), tex);
+    }, GoMP.Studio.Export.ModelExporter.SlotCount - 2);  // one streaming slot stays for the browser's own requests
+});
 
 var app = builder.Build();
 IFileProvider web = webDir != null ? new PhysicalFileProvider(webDir) : new EmbeddedWeb(typeof(Program).Assembly);
@@ -49,6 +63,7 @@ game.Changed += (state, status) =>
     if (state == GameState.Failed) Console.Error.WriteLine(game.Error?.ToString() ?? status);
 };
 app.Services.GetRequiredService<MapWatcher>();
+app.Services.GetRequiredService<HousesWatcher>();
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {

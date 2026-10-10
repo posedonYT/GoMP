@@ -1,47 +1,75 @@
-// Accounts and characters, stored in server-files/data/gomp-rp.json.
-// Passwords are kept as scrypt hashes with a per-account salt.
+// Accounts and characters. The data lives in the store (store/index.js): files
+// in server-files/data (one per record) or Redis (conf.json "storage":
+// "redis://host:6379/0", or GOMP_REDIS_URL). Passwords are scrypt hashes with a
+// per-account salt; hashing runs off the game's thread (crypto.scrypt), so a
+// login never freezes the server.
 
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-
-// GOMP_DATA_DIR moves the database elsewhere (the tests use a temporary folder).
-const dataDir = process.env.GOMP_DATA_DIR || path.join(__dirname, '..', '..', 'data');
-const dataFile = path.join(dataDir, 'gomp-rp.json');
+const store = require('./store').open({
+  // GOMP_DATA_DIR moves the database elsewhere (the tests use a temporary folder).
+  dataDir: process.env.GOMP_DATA_DIR || path.join(__dirname, '..', '..', 'data'),
+  config: typeof mp !== 'undefined' ? mp.config : {},
+});
 
 const MAX_CHARACTERS = 3;
+const db = store.db;
 
-let db = { nextStatic: 1, nextCharId: 1, nextItemUid: 1, accounts: {}, characters: {} };
-try {
-  db = { ...db, ...JSON.parse(fs.readFileSync(dataFile, 'utf8')) };
-} catch (e) {
-  if (e.code !== 'ENOENT') throw e;
+// Lookups that used to scan every character (name taken, phone numbers, statics).
+const byStatic = new Map();
+const byName = new Map();   // "first last" in lower case
+const byPhone = new Map();
+const nameKey = (first, last) => `${String(first).toLowerCase()} ${String(last).toLowerCase()}`;
+
+function index(ch) {
+  byStatic.set(ch.static, ch);
+  byName.set(nameKey(ch.first, ch.last), ch);
+  if (ch.phone) byPhone.set(ch.phone, ch);
 }
 
-let saveTimer = null;
-function save() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(flush, 1000);
+function buildIndexes() {
+  byStatic.clear();
+  byName.clear();
+  byPhone.clear();
+  for (const ch of Object.values(db.characters)) index(ch);
 }
 
-// Writes the database atomically (temp file + rename).
+const ready = store.ready.then(() => buildIndexes());
+buildIndexes();  // files: the data is there already
+
+function save(record) {
+  store.save(record);
+}
+
+// Writes what is waiting; resolves when it is written.
 function flush() {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = null;
-  fs.mkdirSync(dataDir, { recursive: true });
-  const tmp = `${dataFile}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-  fs.renameSync(tmp, dataFile);
+  return store.flush();
 }
 
 // Serial numbers of non-stackable items.
 function nextUid() {
   db.nextItemUid = (db.nextItemUid || 1) + 1;
+  save();
   return db.nextItemUid - 1;
 }
 
-function hashPassword(password, salt) {
-  return crypto.scryptSync(password, salt, 32).toString('hex');
+// The tests hash synchronously (same results, the handlers finish at once);
+// the server never does.
+const SYNC_HASH = process.env.GOMP_SYNC_HASH === '1';
+
+function hashPassword(password, salt, done) {
+  if (SYNC_HASH) {
+    let key;
+    try {
+      key = crypto.scryptSync(password, salt, 32);
+    } catch (e) {
+      done(e);
+      return;
+    }
+    done(null, key);
+    return;
+  }
+  crypto.scrypt(password, salt, 32, done);
 }
 
 const loginRe = /^[A-Za-z0-9_]{3,20}$/;
@@ -53,28 +81,39 @@ function validateCredentials(login, password) {
   return null;
 }
 
-function register(login, password) {
+const notReady = { error: 'Сервер загружает данные, попробуйте через несколько секунд' };
+
+// done({ account } | { error }), at once or after the hash is computed.
+function register(login, password, done) {
   const err = validateCredentials(login, password);
-  if (err) return { error: err };
+  if (err) return done({ error: err });
+  if (store.loaded === false) return done(notReady);
   const key = login.toLowerCase();
-  if (db.accounts[key]) return { error: 'Такой логин уже занят' };
+  if (db.accounts[key]) return done({ error: 'Такой логин уже занят' });
   const salt = crypto.randomBytes(16).toString('hex');
-  db.accounts[key] = { login, salt, hash: hashPassword(password, salt), created: Date.now(), chars: [] };
-  save();
-  return { account: db.accounts[key] };
+  return hashPassword(password, salt, (e, hash) => {
+    if (e) return done({ error: 'Не удалось создать аккаунт' });
+    // Someone took the login while the hash was computed.
+    if (db.accounts[key]) return done({ error: 'Такой логин уже занят' });
+    db.accounts[key] = { login, salt, hash: hash.toString('hex'), created: Date.now(), chars: [] };
+    save(db.accounts[key]);
+    return done({ account: db.accounts[key] });
+  });
 }
 
-function login(loginName, password) {
-  if (typeof loginName !== 'string' || typeof password !== 'string') return { error: 'Неверный логин или пароль' };
+function login(loginName, password, done) {
+  const bad = { error: 'Неверный логин или пароль' };
+  if (typeof loginName !== 'string' || typeof password !== 'string') return done(bad);
+  if (store.loaded === false) return done(notReady);
   const acc = db.accounts[loginName.toLowerCase()];
-  if (!acc) return { error: 'Неверный логин или пароль' };
-  const hash = hashPassword(password, acc.salt);
-  if (!crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(acc.hash, 'hex'))) {
-    return { error: 'Неверный логин или пароль' };
-  }
-  acc.lastLogin = Date.now();
-  save();
-  return { account: acc };
+  if (!acc) return done(bad);
+  return hashPassword(password, acc.salt, (e, hash) => {
+    const stored = Buffer.from(String(acc.hash || ''), 'hex');
+    if (e || stored.length !== hash.length || !crypto.timingSafeEqual(hash, stored)) return done(bad);
+    acc.lastLogin = Date.now();
+    save(acc);
+    return done({ account: acc });
+  });
 }
 
 function charactersOf(account) {
@@ -129,9 +168,7 @@ function createCharacter(account, data = {}) {
   if (!nameRe.test(first) || !nameRe.test(last)) {
     return { error: 'Имя и фамилия: 2–16 букв, с заглавной (например, Ivan Petrov)' };
   }
-  const taken = Object.values(db.characters).some((c) => c.first.toLowerCase() === first.toLowerCase()
-    && c.last.toLowerCase() === last.toLowerCase());
-  if (taken) return { error: 'Персонаж с таким именем уже есть' };
+  if (byName.has(nameKey(first, last))) return { error: 'Персонаж с таким именем уже есть' };
   const kit = KITS[Math.round(Number(data.kit))] || KITS[0];
   const ch = {
     id: db.nextCharId++,
@@ -152,8 +189,11 @@ function createCharacter(account, data = {}) {
     created: Date.now(),
   };
   db.characters[ch.id] = ch;
+  index(ch);
   account.chars.push(ch.id);
-  save();
+  save(ch);
+  save(account);
+  save();  // the counters
   return { character: ch };
 }
 
@@ -163,17 +203,36 @@ function allCharacters() {
 }
 
 function characterByStatic(statik) {
-  const n = Number(statik);
-  return Object.values(db.characters).find((c) => c.static === n) || null;
+  return byStatic.get(Number(statik)) || null;
+}
+
+function characterByPhone(number) {
+  return byPhone.get(String(number)) || null;
+}
+
+// Gives a character a phone number (kept in the index).
+function setPhone(ch, number) {
+  if (ch.phone) byPhone.delete(ch.phone);
+  ch.phone = number;
+  byPhone.set(number, ch);
+  save(ch);
+}
+
+// A character in play: saved with every save() until the player leaves.
+function play(ch) {
+  store.play(ch);
+}
+
+function release(ch) {
+  store.release(ch);
 }
 
 // A named part of the database for other modules (houses.js keeps its owners here).
 function table(name) {
-  if (!db[name] || typeof db[name] !== 'object') db[name] = {};
-  return db[name];
+  return store.table(name);
 }
 
 module.exports = {
   MAX_CHARACTERS, register, login, charactersOf, getCharacter, createCharacter, save, flush, nextUid,
-  allCharacters, characterByStatic, table,
+  allCharacters, characterByStatic, characterByPhone, setPhone, play, release, table, ready, store,
 };

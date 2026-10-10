@@ -14,6 +14,11 @@
 //                     gomp:inv:usekey key               (G menu: repair kit, jerry can)
 //                     gomp:inv:drop container, index, count?   (the item lands on the ground, drops.js)
 //                     gomp:inv:hotkey n (1-9)
+//                     gomp:inv:close                    the window with an open storage was closed
+//
+// A storage (an organization's warehouse, orgs.js) opens next to the pockets as the
+// container "storage": gomp:inv:sync then carries {storage: {title, slots}}; items move
+// between it and the pockets/hotbar with gomp:inv:move like between the player's own slots.
 
 const { ITEMS, resolve } = require('./items');
 const accounts = require('./accounts');
@@ -29,6 +34,8 @@ const BARE = {
 };
 
 const held = new Map(); // player.id -> hotbar index of the weapon in hand
+// player.id -> the open storage: { title, slots, canTake(), canPut(), check(), onChange() }
+const external = new Map();
 
 function emptyInventory() {
   return { pockets: Array(SIZES.pockets).fill(null), hotbar: Array(SIZES.hotbar).fill(null), equip: Array(SIZES.equip).fill(null) };
@@ -186,11 +193,38 @@ function sendDefs(player) {
 function sync(player, ch) {
   const inv = ensure(ch);
   const pack = (s) => (s ? { key: s.key, count: s.count, uid: s.uid || 0, label: (s.data && s.data.label) || '' } : null);
+  const ext = external.get(player.id);
   player.call('gomp:inv:sync', [{
     pockets: inv.pockets.map(pack), hotbar: inv.hotbar.map(pack), equip: inv.equip.map(pack),
     held: held.has(player.id) ? held.get(player.id) : -1,
+    ...(ext ? { storage: { title: ext.title, slots: ext.slots.map(pack), take: !!ext.canTake(), put: !!ext.canPut() } } : {}),
   }]);
 }
+
+// ------------------------------------------------------------------ storages
+
+// Opens a storage next to the player's inventory (the client opens the window).
+function openExternal(player, ch, storage) {
+  external.set(player.id, storage);
+  sync(player, ch);
+  player.call('gomp:inv:open', []);
+}
+
+function closeExternal(player) {
+  external.delete(player.id);
+}
+
+// Everybody else looking into the same storage sees the change.
+function syncViewers(slots, except) {
+  external.forEach((e, pid) => {
+    if (e.slots !== slots || pid === except) return;
+    const p = mp.players.at(pid);
+    const ch = p && accounts.characterByStatic(p.getVariable('static'));
+    if (ch) sync(p, ch);
+  });
+}
+
+mp.events.add('playerQuit', (player) => external.delete(player.id));
 
 // ------------------------------------------------------------------ weapons in hand
 
@@ -266,9 +300,22 @@ function fitsEquip(ch, item, index) {
 // ------------------------------------------------------------------ actions
 
 function move(player, ch, from, fi, to, ti, count) {
-  const inv = ensure(ch);
-  if (!SIZES[from] || !SIZES[to] || !(fi >= 0 && fi < SIZES[from]) || !(ti >= 0 && ti < SIZES[to])) return undefined;
+  const own = ensure(ch);
+  const ext = external.get(player.id);
+  if ((from === 'storage' || to === 'storage') && (!ext || !ext.check())) {
+    external.delete(player.id);
+    return sync(player, ch);
+  }
+  // The containers by name: the player's own slots, or the open storage.
+  const inv = ext ? { ...own, storage: ext.slots } : own;
+  const sizeOf = (c) => (c === 'storage' ? (ext ? ext.slots.length : 0) : SIZES[c]);
+  if (!sizeOf(from) || !sizeOf(to) || !(fi >= 0 && fi < sizeOf(from)) || !(ti >= 0 && ti < sizeOf(to))) return undefined;
   if (from === to && fi === ti) return undefined;
+  if ((from === 'storage' && to === 'equip') || (from === 'equip' && to === 'storage')) return player.notify('~r~Сначала переложите предмет в карманы');
+  const taking = from === 'storage' && to !== 'storage';
+  const putting = to === 'storage';  // also rearranging the storage itself
+  if (taking && !ext.canTake()) return player.notify('~r~Нет доступа: брать со склада');
+  if ((putting || (taking && inv[to][ti])) && !ext.canPut()) return player.notify('~r~Нет доступа: класть на склад');
   const src = inv[from][fi];
   if (!src) return undefined;
   const dst = inv[to][ti];
@@ -293,6 +340,10 @@ function move(player, ch, from, fi, to, ti, count) {
   if (heldIndex !== undefined && ((from === 'hotbar' && fi === heldIndex) || (to === 'hotbar' && ti === heldIndex))) holster(player);
   if (from === 'equip' || to === 'equip') applyEquipment(player, ch);
   accounts.save();
+  if (from === 'storage' || to === 'storage') {
+    ext.onChange();
+    syncViewers(ext.slots, player.id);
+  }
   return sync(player, ch);
 }
 
@@ -460,7 +511,10 @@ function resolveItem(name) {
   return resolve(name);
 }
 
+mp.events.add('gomp:inv:close', (player) => closeExternal(player));
+
 module.exports = {
+  openExternal, closeExternal, external,
   ensure, resolveItem, add, addItem, spaceShortage, remove, countOf, sync, sendDefs, move, use, useKey, take, hotkey, give,
   holster, draw, refreshAmmo, reconcileAmmo, applyEquipment, clothesItem, held, ITEMS,
 };

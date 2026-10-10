@@ -119,3 +119,40 @@ TEST_CASE("messages are grouped into conversations, the latest first") {
     CHECK(conversations(msgs) == std::vector<std::size_t>{3, 2, 1});
     CHECK(conversations(std::vector<Msg>{}).empty());
 }
+
+TEST_CASE("dealership: sections and classes, the cars of a class in catalog order") {
+    struct Car {
+        bool custom;
+        int cls;
+    };
+    const std::vector<Car> cars = {{true, 7}, {true, 1}, {false, 1}, {false, 0}, {false, 7}, {false, 1}, {true, 7}};
+    const std::vector<int> order = {0, 1, 2, 7, 8};
+    // Only the classes with cars in the section, in the catalog's order.
+    CHECK(dealerClasses(cars, true, order) == std::vector<int>{1, 7});
+    CHECK(dealerClasses(cars, false, order) == std::vector<int>{0, 1, 7});
+    CHECK(dealerClasses(std::vector<Car>{}, false, order).empty());
+    CHECK(dealerList(cars, false, 1) == std::vector<int>{2, 5});
+    CHECK(dealerList(cars, true, 7) == std::vector<int>{0, 6});
+    CHECK(dealerList(cars, true, 0).empty());
+}
+
+TEST_CASE("organization tab: only lower ranks are promoted, demoted or dismissed") {
+    const int top = 10;
+    // The leader: anybody but himself, never up to the leader's rank.
+    auto a = orgActions(10, true, true, true, 5, top, false);
+    CHECK((a.promote && a.demote && a.kick));
+    CHECK_FALSE(orgActions(10, true, true, true, 9, top, false).promote);  // 10 is the leader's
+    CHECK_FALSE(orgActions(10, true, true, true, 10, top, true).kick);      // not himself
+    // Rank 8 with the permissions: below 8 only, and not up to 8.
+    CHECK(orgActions(8, false, true, true, 6, top, false).promote);
+    CHECK_FALSE(orgActions(8, false, true, true, 7, top, false).promote);
+    CHECK(orgActions(8, false, true, true, 7, top, false).demote);
+    CHECK_FALSE(orgActions(8, false, true, true, 8, top, false).kick);
+    CHECK_FALSE(orgActions(8, false, true, true, 9, top, false).demote);
+    CHECK_FALSE(orgActions(8, false, true, true, 1, top, false).demote);  // 1 is the lowest
+    // Without the permissions: nothing.
+    auto none = orgActions(8, false, false, false, 3, top, false);
+    CHECK_FALSE((none.promote || none.demote || none.kick));
+    // The leader's rank is never touched by others.
+    CHECK_FALSE(orgActions(9, false, true, true, top, top, false).kick);
+}

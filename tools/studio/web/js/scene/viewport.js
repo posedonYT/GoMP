@@ -9,6 +9,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 const CLICK_PIXELS = 5;
+const IDLE_MS = 250;  // an unchanged view is still drawn this often
 
 export class Viewport extends EventTarget {
   constructor(container) {
@@ -44,6 +45,9 @@ export class Viewport extends EventTarget {
     this.world = new THREE.Group();
     this.objects = new THREE.Group();
     this.scene.add(this.world, this.objects);
+    // More things that count as ground: the interior of a house lies in its own
+    // group, away from the streamed world, but props are placed and dropped on it.
+    this.groundExtra = [];
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
@@ -67,9 +71,15 @@ export class Viewport extends EventTarget {
     this.speed = 25;
     this.lastTime = performance.now();
     this.onFrame = [];
+    // Drawn only when something changed (the world around is big: a frame costs a lot).
+    this.dirty = true;
+    this.activeUntil = 0;
+    this.lastDraw = 0;
+    this.drawnCamera = new Float64Array(7).fill(NaN);
 
     this.lookAt(new THREE.Vector3(195, -930, 30), 120, 0);  // Legion Square, from the south
     this.bindInput();
+    this.bindActivity();
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
     this.renderer.setAnimationLoop(() => this.frame());
@@ -81,6 +91,24 @@ export class Viewport extends EventTarget {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.invalidate();
+  }
+
+  // The next frame draws. Whatever changes the scene calls this (the world, the map
+  // objects after an edit, ...); input also keeps drawing for a moment (bindActivity).
+  invalidate() {
+    this.dirty = true;
+  }
+
+  // Input of any kind (a click in a form, a key, the mouse over the view) may change
+  // something that does not know about invalidate(): draw while it goes on, and a
+  // second after it.
+  bindActivity() {
+    const keep = (ms) => () => { this.activeUntil = performance.now() + ms; };
+    for (const type of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'input', 'change', 'click', 'dragover', 'drop'])
+      window.addEventListener(type, keep(1000), true);
+    this.renderer.domElement.addEventListener('pointermove', keep(300));
+    document.addEventListener('visibilitychange', () => this.invalidate());
   }
 
   // Looks at a point from a distance (behind and above it, keeping the direction).
@@ -151,7 +179,7 @@ export class Viewport extends EventTarget {
   // plane at the height of the camera target.
   groundPoint() {
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects(this.world.children, true);
+    const hits = this.raycaster.intersectObjects(this.groundTargets(), true);
     if (hits.length) return hits[0].point.clone();
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -this.controls.target.z);
     const p = new THREE.Vector3();
@@ -161,8 +189,12 @@ export class Viewport extends EventTarget {
   // Height of the world under a point (a ray from above), or null.
   groundAt(x, y, fromZ = 3000) {
     const ray = new THREE.Raycaster(new THREE.Vector3(x, y, fromZ), new THREE.Vector3(0, 0, -1));
-    const hits = ray.intersectObjects(this.world.children, true);
+    const hits = ray.intersectObjects(this.groundTargets(), true);
     return hits.length ? hits[0].point.z : null;
+  }
+
+  groundTargets() {
+    return this.groundExtra.length ? [...this.world.children, ...this.groundExtra] : this.world.children;
   }
 
   // WASD/QE flight: the camera and its target move together.
@@ -199,13 +231,28 @@ export class Viewport extends EventTarget {
     const t = this.controls.target;
     this.grid.position.set(Math.round(t.x / 10) * 10, Math.round(t.y / 10) * 10, t.z - 0.02);
     for (const fn of this.onFrame) fn(dt);
+    if (!this.needsDraw(now)) return;
+    this.lastDraw = now;
+    this.dirty = false;
     this.renderer.render(this.other || this.scene, this.camera);
+  }
+
+  // Camera moved, something asked for it, input is going on, or the safety beat:
+  // things changed by code that does not call invalidate() (a model that arrived)
+  // show at most IDLE_MS late.
+  needsDraw(now) {
+    const c = this.camera, d = this.drawnCamera;
+    const cur = [c.position.x, c.position.y, c.position.z, c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w];
+    let moved = false;
+    for (let i = 0; i < 7; i++) if (d[i] !== cur[i]) { moved = true; d[i] = cur[i]; }
+    return moved || this.dirty || now < this.activeUntil || now - this.lastDraw > IDLE_MS;
   }
 
   // Another scene in the view (the vehicle showroom); null: back to the map, where the camera was.
   showScene(scene, target, distance) {
     if (scene && !this.other) this.saved = { pos: this.camera.position.clone(), target: this.controls.target.clone() };
     this.other = scene;
+    this.invalidate();
     this.grid.visible = !scene;
     if (scene) {
       this.gizmo.detach();

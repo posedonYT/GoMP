@@ -2,6 +2,7 @@
 // the Studio, in GTA V's axes), loaded once and shared by every object that
 // uses them (clones share geometry and materials).
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { modelUrl } from './stream.js';
 
 export class Models {
   constructor() {
@@ -9,10 +10,13 @@ export class Models {
     this.cache = new Map();  // "<model>|<lod>" -> Promise<THREE.Group | null>
   }
 
-  load(model, lod = 'high', tex = 512) {
+  // low: streaming of the world around the camera. It goes behind what the user
+  // asked for, in the browser's queue and on the server (see ExportSlots.cs).
+  load(model, lod = 'high', tex = 512, low = false) {
     const key = `${model}|${lod}|${tex}`;
     if (!this.cache.has(key)) {
-      this.cache.set(key, fetch(`/api/models/${encodeURIComponent(model)}.glb?lod=${lod}&tex=${tex}`)
+      const url = modelUrl(model, lod, tex, low);
+      this.cache.set(key, fetch(url, low ? { priority: 'low' } : { priority: 'high' })
         .then((r) => (r.ok ? r.arrayBuffer() : null))
         .then((buf) => (buf ? this.loader.parseAsync(buf, '') : null))
         .then((gltf) => {

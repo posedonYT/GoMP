@@ -7,6 +7,10 @@ require('./places');
 require('./houses');
 require('./phone');
 require('./maps');
+require('./prompt');
+require('./cars');
+require('./dealership');
+require('./orgs');
 require('./admin');
 
 // Chat and commands are available once a character is in the game.
@@ -43,11 +47,13 @@ command('help', (player) => {
   player.outputChatBox('Команды: /veh [модель], /tp x y z, /pos, /money, /pay <статик> <сумма>, /time ч, /weather тип. Клиент: /perf /status /reconnect. Админ: /ahelp');
   player.outputChatBox('Клавиши: Tab инвентарь, 1-9 быстрые слоты, E действие, G меню транспорта, L замок, J ремень, стрелка вверх — телефон, F2 меню, T чат');
   player.outputChatBox('Машины: /veh vaz2107, /veh m5, /veh rs7, /veh g37s, /veh agera, /veh regera, /veh jesko, /veh veyron, /veh cullinan или любая модель GTA. Тюнинг: LSC на карте');
-  player.outputChatBox('Недвижимость: дома (зелёные домики на карте) покупаются у двери, E — меню дома, гараж — подъехать к своему дому');
+  player.outputChatBox('Недвижимость: дома (зелёные домики на карте) покупаются у двери, E — меню дома, гараж — подъехать к своему дому. F2 → Недвижимость: ваши дома и машины');
+  player.outputChatBox('Автосалон Premium Deluxe (на карте). /veh — общий транспорт (ничей). Организации: /org, /invite, /uninvite, /setrank, F2 → Организация');
 });
 
+// A vehicle for everyone: it belongs to nobody (cars of one's own come from the dealership).
 command('veh', (player, _, name = 'sultan') => {
-  vehicles.spawnFor(player, name);
+  vehicles.spawnFor(player, name, { owned: false });
 });
 
 command('tp', (player, _, x, y, z) => {

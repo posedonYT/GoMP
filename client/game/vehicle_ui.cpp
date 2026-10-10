@@ -263,6 +263,13 @@ void GameClient::drawVehicleMenu() {
     const Value* owner = props::shared(rv.shared, "owner");
     const Value* statik = props::shared(selfShared_, "static");
     const bool mine = owner && statik && owner->asInt() == statik->asInt();
+    // Who may lock it (vehicles.js canLock): its owner; anyone when it is nobody's (/veh);
+    // members of the organization a work vehicle belongs to.
+    const Value* vorg = props::shared(rv.shared, "org");
+    const Value* myOrg = props::shared(selfShared_, "org");
+    const bool nobodys = (!owner || owner->isNil()) && (!vorg || vorg->isNil());
+    const bool ourOrg = vorg && myOrg && vorg->kind == Value::Kind::String && myOrg->kind == Value::Kind::String && vorg->s == myOrg->s;
+    const bool canLock = mine || nobodys || ourOrg;
     const bool locked = VEHICLE::GET_VEHICLE_DOOR_LOCK_STATUS(veh) >= 2;
     const Value* doorsV = props::shared(rv.shared, "doors");
     const int doors = doorsV ? static_cast<int>(doorsV->asInt()) : 0;
@@ -273,7 +280,7 @@ void GameClient::drawVehicleMenu() {
     auto door = [this, id](int d) { return [this, id, d] { send(ScriptEvent{"gomp:veh:door", {Value::integer(id), Value::integer(d)}}); }; };
     if (driver)
         radial_.push_back({"Двигатель", engine ? "заглушить" : "завести", true, [this, veh] { toggleEngine(veh); }});
-    radial_.push_back({"Замок", locked ? "открыть" : "закрыть", mine, [this, id] { send(ScriptEvent{"gomp:veh:lock", {Value::integer(id)}}); }});
+    radial_.push_back({"Замок", locked ? "открыть" : "закрыть", canLock, [this, id] { send(ScriptEvent{"gomp:veh:lock", {Value::integer(id)}}); }});
     if (inside) radial_.push_back({"Ремень", belted_ ? "отстегнуть" : "пристегнуть", true, [this] { setBelt(!belted_); }});
     radial_.push_back({"Капот", doors & (1 << 4) ? "закрыть" : "открыть", driver || !inside, door(4)});
     radial_.push_back({"Багажник", doors & (1 << 5) ? "закрыть" : "открыть", driver || !inside, door(5)});

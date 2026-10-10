@@ -52,16 +52,24 @@ type Options struct {
 
 // Server is a running game server.
 type Server struct {
-	cfg      config.Config
-	log      *slog.Logger
-	net      *transport.Server
-	world    *world.World
-	grid     *spatial.Grid // streamable entities
-	shapes   *spatial.Grid // colshapes and checkpoints by centre
-	weapons  *gamedata.Weapons
-	vehicles *gamedata.Vehicles
-	combat   combat.Config
-	acLimits anticheat.Limits
+	// Reused every tick (no allocations in the steady state).
+	syncSeen     map[proto.EntityRef]bool
+	clientBuf    []*client
+	msgPed       proto.PlayerSyncOut
+	msgPassenger proto.PassengerSyncOut
+	msgVehicle   proto.VehicleSyncOut
+	shapeScratch map[proto.EntityRef]bool // updateShapes: shapes the current player is in
+	lastStep     time.Time                // start of the previous tick (missed-tick metric)
+	cfg          config.Config
+	log          *slog.Logger
+	net          *transport.Server
+	world        *world.World
+	grid         *spatial.Grid // streamable entities
+	shapes       *spatial.Grid // colshapes and checkpoints by centre
+	weapons      *gamedata.Weapons
+	vehicles     *gamedata.Vehicles
+	combat       combat.Config
+	acLimits     anticheat.Limits
 
 	clients map[*transport.Conn]*client
 	byID    []*client // indexed by player id
@@ -82,6 +90,9 @@ type Server struct {
 	tickRate     int
 	tickDur      time.Duration
 	streamEvery  uint64
+	mirrorEvery  uint64             // ticks between position updates to the script hosts
+	hostBacklog  []hostbridge.Event // host commands left over by the per-tick budget
+	mirrorBuf    []proto.Value      // scratch for OpUpdates
 	bytesPerTick int
 	now          time.Time
 	started      time.Time
@@ -146,6 +157,10 @@ func New(opts Options) (*Server, error) {
 		Encryption: cfg.Encryption,
 		MaxConns:   cfg.MaxPlayers + 64,
 		Timeout:    time.Duration(cfg.GoMP.ConnectionTimeoutMs) * time.Millisecond,
+		// Load protection: a stalled client is cut off at this backlog, a
+		// flooding one has its datagrams dropped before decryption.
+		MaxRelBacklog:    cfg.GoMP.MaxReliableBacklog,
+		MaxPacketsPerSec: cfg.GoMP.MaxPacketsPerSec,
 	}
 	var tsrv *transport.Server
 	var err error
@@ -171,12 +186,15 @@ func New(opts Options) (*Server, error) {
 		clients:       make(map[*transport.Conn]*client),
 		byID:          make([]*client, cfg.MaxPlayers),
 		streamers:     make(map[proto.EntityRef]map[uint16]struct{}),
+		shapeScratch:  map[proto.EntityRef]bool{},
+		syncSeen:      map[proto.EntityRef]bool{},
 		playerSync:    make([]*cachedSync, cfg.MaxPlayers),
 		vehicleSync:   make([]*cachedSync, world.MaxVehicles),
 		largeShapes:   make(map[uint16]*world.Colshape),
 		tickRate:      cfg.GoMP.TickRate,
 		tickDur:       time.Second / time.Duration(cfg.GoMP.TickRate),
 		streamEvery:   uint64(max(1, cfg.GoMP.TickRate/cfg.GoMP.StreamUpdateRate)),
+		mirrorEvery:   uint64(max(1, cfg.GoMP.TickRate/max(1, cfg.GoMP.HostMirrorRate))),
 		bytesPerTick:  cfg.GoMP.BandwidthPerPlayer / cfg.GoMP.TickRate,
 		scripts:       opts.Scripts,
 		hosts:         make(map[int]*hostState),
@@ -270,7 +288,7 @@ func (s *Server) step() {
 	s.processInbound()
 	ph.mark(phaseInbound)
 	if s.scripts != nil {
-		s.scripts.Poll(s.onHostEvent)
+		s.pollHosts()
 	}
 	s.checkTimers()
 	ph.mark(phaseScripts)
@@ -295,7 +313,23 @@ func (s *Server) step() {
 	ph.mark(phaseFlush)
 	s.flushHosts()
 	ph.mark(phaseHosts)
-	s.metrics.observeTick(time.Since(start), len(s.clients))
+	took := time.Since(start)
+	s.metrics.observeTick(took, len(s.clients))
+	s.countLate(start, took)
+}
+
+// countLate counts ticks over budget and ticks the ticker dropped: a Ticker
+// does not catch up after an overrun, the world just runs slower.
+func (s *Server) countLate(start time.Time, took time.Duration) {
+	if took > s.tickDur {
+		s.metrics.ticksOver.Add(1)
+	}
+	if !s.lastStep.IsZero() {
+		if gap := start.Sub(s.lastStep); gap > s.tickDur*3/2 {
+			s.metrics.ticksMissed.Add(uint64(gap/s.tickDur) - 1)
+		}
+	}
+	s.lastStep = start
 }
 
 // shutdown notifies hosts (serverShutdown), disconnects players and closes sockets.
@@ -362,13 +396,15 @@ func parallel(n int, fn func(i int)) {
 }
 
 // clientList returns connected clients ordered by player id.
+// The slice is reused from tick to tick: callers must not keep it.
 func (s *Server) clientList() []*client {
-	out := make([]*client, 0, len(s.clients))
+	out := s.clientBuf[:0]
 	for _, c := range s.byID {
 		if c != nil {
 			out = append(out, c)
 		}
 	}
+	s.clientBuf = out
 	return out
 }
 

@@ -1,0 +1,700 @@
+{
+  "format": "gomp-houses",
+  "version": 1,
+  "interiors": [
+    {
+      "id": "studio",
+      "name": "Квартира-студия",
+      "spawn": [
+        266.077,
+        -1005.313,
+        -99.876
+      ],
+      "heading": 0,
+      "exit": [
+        266.077,
+        -1007.113,
+        -101.009
+      ],
+      "props": []
+    },
+    {
+      "id": "renovated",
+      "name": "Квартира с ремонтом",
+      "spawn": [
+        346.5,
+        -1009.5,
+        -99.196
+      ],
+      "heading": 0,
+      "exit": [
+        346.5,
+        -1011.8,
+        -99.196
+      ],
+      "props": []
+    },
+    {
+      "id": "integrity",
+      "name": "Апартаменты класса люкс",
+      "spawn": [
+        -15.584,
+        -581.944,
+        90.099
+      ],
+      "heading": 160,
+      "exit": [
+        -14.969,
+        -580.252,
+        90.099
+      ],
+      "props": []
+    }
+  ],
+  "garages": [
+    {
+      "id": "garage2",
+      "name": "Гараж на 2 места",
+      "spawn": [
+        177,
+        -1006.3,
+        -99
+      ],
+      "heading": 90,
+      "exit": [
+        179.02,
+        -1005.35,
+        -99
+      ],
+      "slots": [
+        {
+          "pos": [
+            171.4,
+            -1004,
+            -99
+          ],
+          "heading": 180
+        },
+        {
+          "pos": [
+            175.2,
+            -1004,
+            -99
+          ],
+          "heading": 180
+        }
+      ]
+    },
+    {
+      "id": "garage6",
+      "name": "Гараж на 6 мест",
+      "spawn": [
+        205.2,
+        -999.04,
+        -99
+      ],
+      "heading": 90,
+      "exit": [
+        207,
+        -999.04,
+        -99
+      ],
+      "slots": [
+        {
+          "pos": [
+            192.6,
+            -1005.2,
+            -99
+          ],
+          "heading": 180
+        },
+        {
+          "pos": [
+            197.4,
+            -1005.2,
+            -99
+          ],
+          "heading": 180
+        },
+        {
+          "pos": [
+            202.2,
+            -1005.2,
+            -99
+          ],
+          "heading": 180
+        },
+        {
+          "pos": [
+            192.6,
+            -999.8,
+            -99
+          ],
+          "heading": 180
+        },
+        {
+          "pos": [
+            197.4,
+            -999.8,
+            -99
+          ],
+          "heading": 180
+        },
+        {
+          "pos": [
+            202.2,
+            -999.8,
+            -99
+          ],
+          "heading": 180
+        }
+      ]
+    },
+    {
+      "id": "garage10",
+      "name": "Гараж на 10 мест",
+      "spawn": [
+        236.3,
+        -1004.82,
+        -99
+      ],
+      "heading": 90,
+      "exit": [
+        238.3,
+        -1004.82,
+        -99
+      ],
+      "slots": [
+        {
+          "pos": [
+            223.3,
+            -1001.2,
+            -99
+          ],
+          "heading": 270
+        },
+        {
+          "pos": [
+            233.7,
+            -1001.2,
+            -99
+          ],
+          "heading": 90
+        },
+        {
+          "pos": [
+            223.3,
+            -996.4,
+            -99
+          ],
+          "heading": 270
+        },
+        {
+          "pos": [
+            233.7,
+            -996.4,
+            -99
+          ],
+          "heading": 90
+        },
+        {
+          "pos": [
+            223.3,
+            -991.6,
+            -99
+          ],
+          "heading": 270
+        },
+        {
+          "pos": [
+            233.7,
+            -991.6,
+            -99
+          ],
+          "heading": 90
+        },
+        {
+          "pos": [
+            223.3,
+            -986.8,
+            -99
+          ],
+          "heading": 270
+        },
+        {
+          "pos": [
+            233.7,
+            -986.8,
+            -99
+          ],
+          "heading": 90
+        },
+        {
+          "pos": [
+            223.3,
+            -982,
+            -99
+          ],
+          "heading": 270
+        },
+        {
+          "pos": [
+            233.7,
+            -982,
+            -99
+          ],
+          "heading": 90
+        }
+      ]
+    }
+  ],
+  "classes": [
+    {
+      "id": "econom",
+      "name": "Эконом",
+      "garage": 2,
+      "interior": "studio",
+      "garageInterior": "garage2"
+    },
+    {
+      "id": "middle",
+      "name": "Комфорт",
+      "garage": 6,
+      "interior": "renovated",
+      "garageInterior": "garage6"
+    },
+    {
+      "id": "lux",
+      "name": "Люкс",
+      "garage": 10,
+      "interior": "integrity",
+      "garageInterior": "garage10"
+    }
+  ],
+  "houses": [
+    {
+      "id": 1,
+      "name": "Grove Street, 1",
+      "cls": "econom",
+      "price": 55000,
+      "door": [
+        126.79,
+        -1929.97,
+        21.38
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          113.06,
+          -1935.3,
+          20.8
+        ],
+        "heading": 21
+      }
+    },
+    {
+      "id": 2,
+      "name": "Grove Street, 2",
+      "cls": "econom",
+      "price": 55000,
+      "door": [
+        114.42,
+        -1961.06,
+        21.33
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          108.01,
+          -1951.85,
+          20.8
+        ],
+        "heading": 305
+      }
+    },
+    {
+      "id": 3,
+      "name": "Grove Street, 3",
+      "cls": "econom",
+      "price": 50000,
+      "door": [
+        85.86,
+        -1959.53,
+        21.12
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          91.7,
+          -1951.62,
+          20.8
+        ],
+        "heading": 234
+      }
+    },
+    {
+      "id": 4,
+      "name": "Grove Street, 4",
+      "cls": "econom",
+      "price": 50000,
+      "door": [
+        72.08,
+        -1938.97,
+        21.37
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          86.03,
+          -1939.66,
+          20.8
+        ],
+        "heading": 177
+      }
+    },
+    {
+      "id": 5,
+      "name": "Grove Street, 5",
+      "cls": "econom",
+      "price": 60000,
+      "door": [
+        100.91,
+        -1912.27,
+        21.41
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          89,
+          -1916.7,
+          20.8
+        ],
+        "heading": 133
+      }
+    },
+    {
+      "id": 7,
+      "name": "Strawberry Avenue, 12",
+      "cls": "econom",
+      "price": 45000,
+      "door": [
+        292.53,
+        -1078.74,
+        29.4
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          299.7,
+          -1078.7,
+          29.38
+        ],
+        "heading": 180
+      }
+    },
+    {
+      "id": 8,
+      "name": "Richards Majestic, кв. 2",
+      "cls": "middle",
+      "price": 180000,
+      "door": [
+        -936.36,
+        -379.17,
+        38.96
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -926.9,
+          -407.4,
+          37.53
+        ],
+        "heading": 119
+      }
+    },
+    {
+      "id": 9,
+      "name": "Tinsel Towers, кв. 42",
+      "cls": "middle",
+      "price": 220000,
+      "door": [
+        -618.3,
+        37.03,
+        43.58
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -636.1,
+          56.5,
+          44.4
+        ],
+        "heading": 90
+      }
+    },
+    {
+      "id": 11,
+      "name": "Eclipse Towers, кв. 3",
+      "cls": "middle",
+      "price": 260000,
+      "door": [
+        -775.17,
+        312.01,
+        85.66
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -795.1,
+          305,
+          85.78
+        ],
+        "heading": 186
+      }
+    },
+    {
+      "id": 12,
+      "name": "3655 Wild Oats Drive",
+      "cls": "lux",
+      "price": 650000,
+      "door": [
+        -176,
+        502.7,
+        137.42
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -188.4,
+          503.6,
+          135.1
+        ],
+        "heading": 88
+      }
+    },
+    {
+      "id": 13,
+      "name": "2044 North Conker Avenue",
+      "cls": "lux",
+      "price": 700000,
+      "door": [
+        346.96,
+        440.8,
+        147.7
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          354.3,
+          437.3,
+          147.2
+        ],
+        "heading": 300
+      }
+    },
+    {
+      "id": 14,
+      "name": "2045 North Conker Avenue",
+      "cls": "lux",
+      "price": 700000,
+      "door": [
+        372.8,
+        428.33,
+        145.69
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          391,
+          432.4,
+          143.1
+        ],
+        "heading": 272
+      }
+    },
+    {
+      "id": 15,
+      "name": "2862 Hillcrest Avenue",
+      "cls": "lux",
+      "price": 800000,
+      "door": [
+        -686.55,
+        596.58,
+        143.64
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -685.4,
+          604.7,
+          144.1
+        ],
+        "heading": 321
+      }
+    },
+    {
+      "id": 16,
+      "name": "2868 Hillcrest Avenue",
+      "cls": "lux",
+      "price": 800000,
+      "door": [
+        -752.82,
+        620.49,
+        142.59
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -752.9,
+          629.1,
+          142.4
+        ],
+        "heading": 195
+      }
+    },
+    {
+      "id": 17,
+      "name": "2874 Hillcrest Avenue",
+      "cls": "lux",
+      "price": 850000,
+      "door": [
+        -853.35,
+        696.68,
+        148.78
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -862.8,
+          700.5,
+          149.1
+        ],
+        "heading": 335
+      }
+    },
+    {
+      "id": 18,
+      "name": "2677 Whispymound Drive",
+      "cls": "lux",
+      "price": 900000,
+      "door": [
+        119.38,
+        564.89,
+        183.96
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          131.2,
+          570.6,
+          183.6
+        ],
+        "heading": 272
+      }
+    },
+    {
+      "id": 19,
+      "name": "2133 Mad Wayne Thunder",
+      "cls": "lux",
+      "price": 750000,
+      "door": [
+        -1294.43,
+        454.96,
+        97.46
+      ],
+      "heading": 0,
+      "garagePoint": {
+        "pos": [
+          -1297.9,
+          457.4,
+          97.7
+        ],
+        "heading": 275
+      }
+    },
+    {
+      "id": 1000,
+      "name": "#20",
+      "cls": "lux",
+      "price": 1000000,
+      "door": [
+        331.1,
+        467.1,
+        151.1
+      ],
+      "heading": 21,
+      "interior": "integrity",
+      "garagePoint": {
+        "pos": [
+          328.7,
+          481.9,
+          151.1
+        ],
+        "heading": 207
+      }
+    },
+    {
+      "id": 1001,
+      "name": "#21 Rich",
+      "cls": "lux",
+      "price": 10000000,
+      "door": [
+        -1549.3,
+        -90.2,
+        54.9
+      ],
+      "heading": 6,
+      "interior": "integrity",
+      "garagePoint": {
+        "pos": [
+          -1582.7,
+          -86.3,
+          54.3
+        ],
+        "heading": 276
+      }
+    },
+    {
+      "id": 1002,
+      "name": "#22 Very Rich",
+      "cls": "lux",
+      "price": 30000000,
+      "door": [
+        -152.3,
+        911.2,
+        235.7
+      ],
+      "heading": 46,
+      "interior": "integrity",
+      "garagePoint": {
+        "pos": [
+          -164.4,
+          924.6,
+          235.7
+        ],
+        "heading": 316
+      }
+    },
+    {
+      "id": 1003,
+      "name": "#23 Very Rich",
+      "cls": "lux",
+      "price": 100000,
+      "door": [
+        -86,
+        834.7,
+        235.9
+      ],
+      "heading": 78,
+      "interior": "integrity",
+      "garagePoint": {
+        "pos": [
+          -104.4,
+          825.2,
+          235.9
+        ],
+        "heading": 18
+      }
+    }
+  ]
+}

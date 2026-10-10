@@ -23,6 +23,12 @@ type ServerConfig struct {
 	Timeout time.Duration
 	// MaxMessageSize bounds reassembled reliable messages (0 = DefaultMaxMessageSize).
 	MaxMessageSize int
+	// MaxRelBacklog bounds reliable bytes queued for one peer; beyond it the
+	// peer is disconnected (0 = DefaultMaxRelBacklog).
+	MaxRelBacklog int
+	// MaxPacketsPerSec limits datagrams from one connection, checked before
+	// decryption (0 = no limit). A peer over it for 5 s in a row is cut off.
+	MaxPacketsPerSec int
 	// Now overrides the clock (tests).
 	Now func() time.Time
 }
@@ -52,6 +58,7 @@ type Conn struct {
 	nonce    uint64
 	accepted atomic.Bool
 	gone     atomic.Bool
+	flood    floodGate // read goroutine only
 	// UserData is free for the application.
 	UserData any
 }
@@ -117,8 +124,12 @@ type Server struct {
 	closed  atomic.Bool
 	done    chan struct{}
 	dropped atomic.Uint64
+	flooded atomic.Uint64
 	writer  *socketWriter
 }
+
+// FloodDropped is how many datagrams were dropped by the per-connection limit.
+func (s *Server) FloodDropped() uint64 { return s.flooded.Load() }
 
 // Listen opens a UDP socket on addr ("host:port") and starts serving.
 func Listen(addr string, cfg ServerConfig) (*Server, error) {
@@ -146,6 +157,9 @@ func NewServer(pc PacketConn, cfg ServerConfig) (*Server, error) {
 	if cfg.MaxMessageSize <= 0 {
 		cfg.MaxMessageSize = DefaultMaxMessageSize
 	}
+	if cfg.MaxRelBacklog <= 0 {
+		cfg.MaxRelBacklog = DefaultMaxRelBacklog
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
@@ -160,7 +174,7 @@ func NewServer(pc PacketConn, cfg ServerConfig) (*Server, error) {
 		}
 		s.priv, s.pub = k, k.PublicKey().Bytes()
 	}
-	s.writer = newSocketWriter(pc, 2)
+	s.writer = newSocketWriter(pc, writerCount(runtime.GOOS, runtime.GOMAXPROCS(0)))
 	go s.readLoop()
 	return s, nil
 }
@@ -262,6 +276,14 @@ func (s *Server) NumConns() int {
 // DroppedPackets counts datagrams discarded as malformed or unauthenticated.
 func (s *Server) DroppedPackets() uint64 { return s.dropped.Load() }
 
+// WriterStalls is how many times the game loop waited for the socket writers.
+func (s *Server) WriterStalls() uint64 {
+	if s.writer == nil {
+		return 0
+	}
+	return s.writer.Stalls()
+}
+
 func (s *Server) snapshotConns() []*Conn {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -315,6 +337,13 @@ func (s *Server) handlePacket(pkt []byte, addr netip.AddrPort) {
 		s.mu.RUnlock()
 		if c == nil || !c.accepted.Load() {
 			s.dropped.Add(1)
+			return
+		}
+		if ok, cut := c.flood.allow(now, s.cfg.MaxPacketsPerSec); !ok {
+			s.flooded.Add(1)
+			if cut {
+				c.Disconnect("packet flood")
+			}
 			return
 		}
 		switch c.s.handleFramed(pkt, now) {
@@ -402,6 +431,7 @@ func (s *Server) handleConnect(pkt []byte, addr netip.AddrPort, now time.Time) {
 	}
 	ss := newSession(s.pc, addr, randSessionID(), now)
 	ss.ep.maxMsgSize = s.cfg.MaxMessageSize
+	ss.ep.maxBacklog = s.cfg.MaxRelBacklog
 	if s.priv != nil {
 		peer, err := ecdh.X25519().NewPublicKey(clientPub)
 		if err != nil {

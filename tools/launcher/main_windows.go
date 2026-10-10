@@ -85,7 +85,8 @@ func run(gameDir, server, name, dist string, cleanOnly bool) error {
 	if dist == "" {
 		dist = findDist()
 	}
-	installAddons(game.dir, dist)
+	// The local add-on packs and the packs of the server (a server pack of the same name wins).
+	installAddons(game.dir, strings.Join(nonEmpty(filepath.Join(dist, "addons"), serverResources(server)), ";"))
 	if err := install(game.dir, dist, server, name); err != nil {
 		_ = cleanup(game.dir)
 		return err
@@ -235,12 +236,28 @@ func cleanup(gameDir string) error {
 	return os.Remove(path)
 }
 
-// installAddons keeps the add-on vehicle packs of dist/addons in the game's mods
+// nonEmpty drops empty strings.
+func nonEmpty(s ...string) []string {
+	var out []string
+	for _, x := range s {
+		if x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// installAddons keeps the add-on packs of the folders (separated by ";") in the game's mods
 // folder (tools/addons). The mods folder is only read while RageOpenV.asi is in
 // the game folder, i.e. during GoMP sessions.
-func installAddons(gameDir, dist string) {
-	packs := filepath.Join(dist, "addons")
-	if st, err := os.Stat(packs); err != nil || !st.IsDir() {
+func installAddons(gameDir, packs string) {
+	found := false
+	for _, d := range strings.Split(packs, ";") {
+		if st, err := os.Stat(d); err == nil && st.IsDir() {
+			found = true
+		}
+	}
+	if !found {
 		return
 	}
 	exe, _ := os.Executable()

@@ -1,0 +1,88 @@
+{
+  "started": "2026-10-10T12:39:20.7854892+03:00",
+  "options": {
+    "bots": 1000,
+    "duration": "45s",
+    "encryption": true,
+    "isolate": true,
+    "jitter": "0s",
+    "latency": "0s",
+    "loss": 0,
+    "mix": "walkers=60,drivers=20,shooters=20",
+    "profile": "mixed"
+  },
+  "host": {
+    "arch": "amd64",
+    "cpus": 12,
+    "go": "go1.27.1",
+    "os": "windows"
+  },
+  "connectedAtEnd": 1000,
+  "connectErrors": {},
+  "disconnects": {},
+  "server": {
+    "cpuCores": 1.6349281557232345,
+    "deaths": 3410,
+    "gcPauseP99Ms": 0.5242880000000001,
+    "goroutines": 17,
+    "heapMB": 349.9518280029297,
+    "hitsPerSec": 345.28130523819055,
+    "hostCommandsPerSec": 151.31001971136735,
+    "hostEventsPerSec": 75.61066342552208,
+    "kbInPerPlayerSec": 1.308330534188971,
+    "kbOutPerPlayerSec": 62.69925634496333,
+    "players": 1000,
+    "rssMB": 500.55078125,
+    "shotsPerSec": 605.1513859851462,
+    "syncDeferredPerSec": 0.15521250556558785,
+    "syncInPerSec": 27655.276430944665,
+    "syncOutPerSec": 1453359.1254536295,
+    "tickMaxMs": 19.191,
+    "tickP50Ms": 6.932,
+    "tickP99Ms": 15.068,
+    "vehicles": 200,
+    "violations": 0
+  },
+  "syncLatencyMs": {
+    "ped_max": 1135.351,
+    "ped_p50": 67,
+    "ped_p95": 69.3,
+    "ped_p99": 71.1,
+    "samples": 8143037,
+    "veh_p50": 66.3,
+    "veh_p99": 69.9
+  },
+  "bots": {
+    "avgLoss": 0,
+    "avgRttMs": 13.727827000000001,
+    "resends": 0,
+    "syncMsgsPerBotPerSec": 1710.7536554296746
+  },
+  "checks": [
+    {
+      "name": "tick p99 ms",
+      "value": 15.068,
+      "limit": 10,
+      "passed": false
+    },
+    {
+      "name": "tick max ms (budget 33.3)",
+      "value": 19.191,
+      "limit": 33.3,
+      "passed": true
+    },
+    {
+      "name": "connected bots",
+      "value": 1000,
+      "limit": 1000,
+      "passed": true
+    },
+    {
+      "name": "ped sync latency p99 ms",
+      "value": 71.1,
+      "limit": 150,
+      "passed": true
+    }
+  ],
+  "passed": false
+}

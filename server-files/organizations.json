@@ -1,0 +1,123 @@
+{
+  "format": "gomp-orgs",
+  "version": 1,
+  "orgs": [
+    {
+      "id": "lspd",
+      "name": "LSPD",
+      "full": "Los Santos Police Department",
+      "color": [70, 130, 230],
+      "blip": { "sprite": 60, "color": 38 },
+      "base": {
+        "name": "Mission Row Police Station",
+        "center": [442.4, -985.1, 30.7],
+        "radius": 70,
+        "interior": [442.4, -985.1, 30.7],
+        "storage": [452.3, -980.0, 30.69],
+        "doors": [
+          { "model": "v_ilev_ph_door01", "pos": [434.69, -981.92, 31.07], "n": [1, 0] },
+          { "model": "v_ilev_ph_door002", "pos": [434.69, -981.92, 31.07], "n": [1, 0] },
+          { "model": "v_ilev_ph_gendoor004", "pos": [449.89, -986.39, 30.84], "n": [-1, 0] },
+          { "model": "v_ilev_ph_gendoor005", "pos": [449.89, -982.79, 30.84], "n": [-1, 0] },
+          { "model": "v_ilev_ph_gendoor006", "pos": [442.82, -993.24, 30.84], "n": [-1, 0] },
+          { "model": "v_ilev_ph_gendoor005", "pos": [444.71, -989.17, 30.84], "n": [0, 1] },
+          { "model": "v_ilev_ph_gendoor002", "pos": [447.22, -980.16, 30.84], "n": [0, -1] },
+          { "model": "v_ilev_arm_secdoor", "pos": [461.06, -985.93, 30.84], "n": [-1, 0] },
+          { "model": "v_ilev_gtdoor02", "pos": [464.36, -984.03, 43.83], "n": [-1, 0] },
+          { "model": "v_ilev_rc_door2", "pos": [468.67, -1014.48, 26.6], "n": [0, 1] },
+          { "model": "v_ilev_rc_door2", "pos": [451.96, -987.51, 30.84], "n": [0, 1] }
+        ]
+      },
+      "vehicles": [
+        { "model": "police", "pos": [438.4, -1018.3, 28.2], "heading": 90 },
+        { "model": "police2", "pos": [441.0, -1024.2, 28.8], "heading": 90 },
+        { "model": "police3", "pos": [453.5, -1022.2, 28.5], "heading": 90 },
+        { "model": "police", "pos": [450.9, -1016.5, 28.6], "heading": 90 },
+        { "model": "policeb", "pos": [444.2, -1017.5, 28.6], "heading": 90 }
+      ],
+      "ranks": ["Кадет", "Офицер I", "Офицер II", "Офицер III", "Сержант I", "Сержант II", "Лейтенант", "Капитан", "Заместитель шефа", "Шеф полиции"]
+    },
+    {
+      "id": "army",
+      "name": "Army",
+      "full": "Армия США · Форт Занкудо",
+      "color": [110, 140, 80],
+      "blip": { "sprite": 421, "color": 52 },
+      "base": {
+        "name": "Fort Zancudo",
+        "center": [-2350.1, 3258.4, 32.8],
+        "radius": 90,
+        "interior": [-2350.1, 3258.4, 32.8],
+        "storage": [-2349.9, 3258.4, 32.81],
+        "doors": [
+          { "model": "v_ilev_ct_doorr", "pos": [-2342.88, 3266.5, 32.96], "n": [-0.87, 0.5] },
+          { "model": "v_ilev_ct_doorl", "pos": [-2342.88, 3266.5, 32.96], "n": [-0.87, 0.5] },
+          { "model": "v_ilev_ct_door02", "pos": [-2350.87, 3258.99, 32.96], "n": [0.87, -0.5] },
+          { "model": "v_ilev_ct_door01", "pos": [-2353.1, 3252.27, 32.96], "n": [0.5, 0.87] },
+          { "model": "v_ilev_ct_door01", "pos": [-2359.06, 3247.25, 93.06], "n": [0.5, 0.87] },
+          { "model": "v_ilev_ct_door03", "pos": [-2358.83, 3255.29, 93.06], "n": [0.5, 0.87] }
+        ]
+      },
+      "vehicles": [
+        { "model": "crusader", "pos": [-2312.0, 3245.8, 32.3], "heading": 330 },
+        { "model": "mesa3", "pos": [-2307.0, 3254.5, 32.3], "heading": 330 },
+        { "model": "barracks", "pos": [-2302.0, 3263.0, 32.3], "heading": 330 },
+        { "model": "crusader", "pos": [-2316.8, 3237.8, 32.4], "heading": 330 }
+      ],
+      "ranks": ["Рядовой", "Ефрейтор", "Младший сержант", "Сержант", "Старшина", "Прапорщик", "Лейтенант", "Капитан", "Майор", "Генерал"]
+    },
+    {
+      "id": "ems",
+      "name": "EMS",
+      "full": "Emergency Medical Services",
+      "color": [230, 80, 90],
+      "blip": { "sprite": 61, "color": 1 },
+      "base": {
+        "name": "Davis Fire & Medical Station",
+        "center": [203.0, -1655.6, 29.8],
+        "radius": 60,
+        "interior": [203.0, -1655.6, 29.8],
+        "storage": [207.06, -1643.4, 29.9],
+        "doors": [
+          { "model": "v_1_door01", "pos": [208.98, -1641.09, 30.8], "n": [-0.64, -0.77] }
+        ]
+      },
+      "vehicles": [
+        { "model": "ambulance", "pos": [208.3, -1647.7, 29.3], "heading": 318 },
+        { "model": "ambulance", "pos": [213.0, -1642.5, 29.3], "heading": 318 },
+        { "model": "firetruk", "pos": [219.8, -1635.0, 28.7], "heading": 318 },
+        { "model": "lguard", "pos": [230.0, -1634.3, 28.8], "heading": 231 }
+      ],
+      "ranks": ["Интерн", "Парамедик", "Старший парамедик", "Врач", "Хирург", "Заведующий отделением", "Заместитель главврача", "Главный врач"]
+    },
+    {
+      "id": "gov",
+      "name": "GOV",
+      "full": "Правительство штата San Andreas",
+      "color": [215, 180, 90],
+      "blip": { "sprite": 419, "color": 5 },
+      "base": {
+        "name": "Government Hall (Pacific Standard)",
+        "center": [247.9, 218.0, 106.3],
+        "radius": 60,
+        "interior": [247.9, 218.0, 106.3],
+        "storage": [255.67, 207.19, 110.28],
+        "doors": [
+          { "model": "hei_prop_hei_bankdoor_new", "pos": [259.42, 203.63, 106.43], "n": [0.34, 0.94] },
+          { "model": "hei_prop_hei_bankdoor_new", "pos": [232.03, 215.33, 106.43], "n": [0.91, 0.42] },
+          { "model": "hei_prop_hei_bankdoor_new", "pos": [259.54, 214.03, 106.43], "n": [-0.94, 0.34] },
+          { "model": "v_ilev_bk_door", "pos": [257.08, 206.68, 110.43], "n": [-0.94, 0.34] },
+          { "model": "v_ilev_bk_door", "pos": [265.66, 217.54, 110.43], "n": [-0.34, -0.94] },
+          { "model": "v_ilev_bk_door", "pos": [237.25, 228.39, 106.43], "n": [-0.34, -0.94] },
+          { "model": "v_ilev_bk_door", "pos": [237.25, 228.39, 110.43], "n": [-0.34, -0.94] }
+        ]
+      },
+      "vehicles": [
+        { "model": "schafter6", "pos": [217.0, 189.8, 105.1], "heading": 250, "color": 0 },
+        { "model": "stretch", "pos": [229.3, 185.3, 104.9], "heading": 250, "color": 0 },
+        { "model": "baller6", "pos": [239.8, 181.8, 104.7], "heading": 250, "color": 0 }
+      ],
+      "ranks": ["Стажёр", "Секретарь", "Юрист", "Адвокат", "Прокурор", "Судья", "Министр", "Губернатор"]
+    }
+  ]
+}

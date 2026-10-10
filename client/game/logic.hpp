@@ -164,4 +164,47 @@ std::vector<std::size_t> conversations(const std::vector<Msg>& msgs) {
     return out;
 }
 
+// ------------------------------------------------------------------ car dealership
+
+// The classes (in the catalog's order) that have cars in a section (custom or not).
+// Car: anything with .custom and .cls.
+template <typename Car>
+std::vector<int> dealerClasses(const std::vector<Car>& cars, bool custom, const std::vector<int>& order) {
+    std::vector<int> out;
+    for (int cls : order)
+        for (const Car& c : cars)
+            if (c.custom == custom && c.cls == cls) {
+                out.push_back(cls);
+                break;
+            }
+    return out;
+}
+
+// The indices of the cars of a section and class, in catalog order (cheapest first).
+template <typename Car>
+std::vector<int> dealerList(const std::vector<Car>& cars, bool custom, int cls) {
+    std::vector<int> out;
+    for (int i = 0; i < static_cast<int>(cars.size()); ++i)
+        if (cars[i].custom == custom && cars[i].cls == cls) out.push_back(i);
+    return out;
+}
+
+// ------------------------------------------------------------------ organizations
+
+// What the F2 tab offers for a member (the server checks again, orgs.js): ranks 1..top,
+// top is the leader's. Only lower ranks are touched (the leader: everybody but himself),
+// nobody is promoted to the leader's rank or to one's own.
+struct OrgActions {
+    bool promote = false, demote = false, kick = false;
+};
+
+inline OrgActions orgActions(int myRank, bool leader, bool canSetRank, bool canKick, int targetRank, int top, bool self) {
+    OrgActions a;
+    const bool below = !self && targetRank < top && (leader || targetRank < myRank);
+    a.kick = canKick && below;
+    a.demote = canSetRank && below && targetRank > 1;
+    a.promote = canSetRank && below && targetRank + 1 < top && (leader || targetRank + 1 < myRank);
+    return a;
+}
+
 }  // namespace gompgame::logic
